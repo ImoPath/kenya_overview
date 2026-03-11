@@ -54,6 +54,10 @@ const countySample = [
 ];
 
 const KENYA_GEO_URL = "/geojson/gadm41_KEN_1.json";
+const MAP_CENTER: [number, number] = [37.9, -0.2];
+const MIN_ZOOM = 0.8;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 0.35;
 
 const COUNTY_STYLES: Record<string, { fill: string; stroke: string; fillHover: string }> = {
   "on-target": { fill: "rgba(16, 185, 129, 0.5)", stroke: "rgba(52, 211, 153, 0.7)", fillHover: "rgba(16, 185, 129, 0.75)" },
@@ -68,29 +72,48 @@ function getCountyStyle(status: string | undefined) {
 
 type CountyMapProps = {
   countyData: typeof countySample;
-  onCountyEnter: (name: string) => void;
-  onCountyLeave: () => void;
+  onCountyHover: (name: string | null) => void;
+  onCountyClick: (name: string) => void;
 };
 
-function CountyMap({ countyData, onCountyEnter, onCountyLeave }: CountyMapProps) {
+function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps) {
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState<[number, number]>(MAP_CENTER);
+
   const countyByName = useMemo(() => {
     const map: Record<string, (typeof countySample)[number]> = {};
     countyData.forEach((c) => { map[c.name] = c; });
     return map;
   }, [countyData]);
 
+  const handleZoomIn = () => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP));
+  const handleZoomOut = () => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP));
+  const handleReset = () => {
+    setZoom(1);
+    setCenter(MAP_CENTER);
+  };
+
   return (
     <div className="relative w-full h-full min-h-[320px] lg:min-h-[400px]">
       <ComposableMap
         projection="geoMercator"
         projectionConfig={{
-          center: [37.9, -0.2],
+          center: MAP_CENTER,
           scale: 2800,
         }}
         className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
       >
-        <ZoomableGroup center={[37.9, -0.2]} zoom={1} minZoom={0.8} maxZoom={3}>
+        <ZoomableGroup
+          center={center}
+          zoom={zoom}
+          minZoom={MIN_ZOOM}
+          maxZoom={MAX_ZOOM}
+          onMoveEnd={({ coordinates, zoom: z }) => {
+            setCenter(coordinates as [number, number]);
+            setZoom(z);
+          }}
+        >
           <Geographies geography={KENYA_GEO_URL}>
             {({ geographies }) =>
               geographies.map((geo) => {
@@ -102,8 +125,9 @@ function CountyMap({ countyData, onCountyEnter, onCountyLeave }: CountyMapProps)
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    onMouseEnter={() => onCountyEnter(name)}
-                    onMouseLeave={onCountyLeave}
+                    onMouseEnter={() => onCountyHover(name)}
+                    onMouseLeave={() => onCountyHover(null)}
+                    onClick={() => onCountyClick(name)}
                     stroke={colors.stroke}
                     strokeWidth={0.5}
                     style={{
@@ -118,6 +142,35 @@ function CountyMap({ countyData, onCountyEnter, onCountyLeave }: CountyMapProps)
           </Geographies>
         </ZoomableGroup>
       </ComposableMap>
+      <div className="absolute top-3 right-3 flex flex-col gap-1 z-10" role="group" aria-label="Map zoom controls">
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          disabled={zoom >= MAX_ZOOM}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/80 backdrop-blur text-white shadow-lg hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Zoom in"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          disabled={zoom <= MIN_ZOOM}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/80 backdrop-blur text-white shadow-lg hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Zoom out"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        </button>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/80 backdrop-blur text-white shadow-lg hover:bg-white/10 transition-colors"
+          aria-label="Reset zoom and position"
+          title="Reset view"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+        </button>
+      </div>
     </div>
   );
 }
@@ -177,7 +230,7 @@ function CountyMetricsPanel({
         </div>
       ) : (
         <div className="flex-1 flex flex-col justify-center text-center text-slate-400">
-          <p className="text-sm">Hover over the map to see key metrics for a county.</p>
+          <p className="text-sm">Click a county on the map to see its key metrics.</p>
           <p className="text-xs mt-2 text-slate-500">
             Green = on target · Yellow = warning · Red = intervention needed
           </p>
@@ -211,6 +264,7 @@ function MetricBlock({
 
 export default function HealthcarePage() {
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
+  const [hoveredCounty, setHoveredCounty] = useState<string | null>(null);
 
   return (
     <div className="relative min-h-screen overflow-auto">
@@ -284,12 +338,21 @@ export default function HealthcarePage() {
           transition={{ duration: 0.4, delay: 0.1 }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
         >
-          <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md overflow-hidden shadow-xl flex items-center justify-center">
+          <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md overflow-hidden shadow-xl flex items-center justify-center relative">
             <CountyMap
               countyData={countySample}
-              onCountyEnter={setSelectedCounty}
-              onCountyLeave={() => setSelectedCounty(null)}
+              onCountyHover={setHoveredCounty}
+              onCountyClick={setSelectedCounty}
             />
+            {hoveredCounty && (
+              <div
+                className="absolute bottom-3 left-3 rounded-lg border border-white/20 bg-black/80 backdrop-blur px-3 py-2 text-sm font-medium text-white shadow-xl pointer-events-none z-10"
+                role="status"
+                aria-live="polite"
+              >
+                {hoveredCounty}
+              </div>
+            )}
           </div>
           <CountyMetricsPanel countyName={selectedCounty} countyData={countySample} />
         </motion.section>
