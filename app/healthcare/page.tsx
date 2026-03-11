@@ -109,10 +109,12 @@ function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps)
           zoom={zoom}
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
-          onMoveEnd={({ coordinates, zoom: z }) => {
-            setCenter(coordinates as [number, number]);
-            setZoom(z);
-          }}
+          {...({
+            onMoveEnd: ({ coordinates, zoom: z }: { coordinates: [number, number]; zoom: number }) => {
+              setCenter(coordinates);
+              setZoom(z);
+            },
+          } as Record<string, unknown>)}
         >
           <Geographies geography={KENYA_GEO_URL}>
             {({ geographies }) =>
