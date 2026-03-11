@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { motion } from "framer-motion";
 
 const metrics = [
   {
@@ -12,6 +14,7 @@ const metrics = [
     trend: "+12%",
     trendUp: true,
     details: ["4.2M new enrolments", "47 counties with improved facilities", "UHC pilot in 10 counties"],
+    href: "/healthcare",
   },
   {
     title: "Affordable Housing",
@@ -22,6 +25,7 @@ const metrics = [
     trend: "+18%",
     trendUp: true,
     details: ["Boma Yangu: 8.1M registered", "156K units completed", "Hustler Fund housing kitty active"],
+    href: undefined,
   },
   {
     title: "Agriculture Transformation",
@@ -32,6 +36,7 @@ const metrics = [
     trend: "+4.1%",
     trendUp: true,
     details: ["Dairy subsidy & aggregation", "Fertilizer program expanded", "Export earnings up 22%"],
+    href: undefined,
   },
   {
     title: "Job Creation",
@@ -42,6 +47,7 @@ const metrics = [
     trend: "+9%",
     trendUp: true,
     details: ["Digital jobs: 124K", "Manufacturing: 89K", "Tourism recovery: 45K"],
+    href: undefined,
   },
   {
     title: "Digital Transformation",
@@ -52,6 +58,7 @@ const metrics = [
     trend: "+7%",
     trendUp: true,
     details: ["e-Citizen services: 15K+", "Digital ID rollout", "Fiber to 47 counties"],
+    href: undefined,
   },
 ];
 
@@ -64,40 +71,61 @@ function KpiCard({
   trend,
   trendUp,
   details,
+  href,
 }: (typeof metrics)[0]) {
+  const cardContent = (
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-2xl">{icon}</span>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+            trendUp ? "bg-emerald-500/30 text-emerald-300" : "bg-rose-500/30 text-rose-300"
+          }`}
+        >
+          {trend} YoY
+        </span>
+      </div>
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+        {title}
+      </h3>
+      <p className="mt-1 text-3xl font-bold text-white">{value}</p>
+      <p className="mt-0.5 text-sm text-slate-400">{subtitle}</p>
+      <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-700"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <ul className="mt-4 space-y-1 text-xs text-slate-400">
+        {details.map((d, i) => (
+          <li key={i} className="flex items-center gap-2">
+            <span className="h-1 w-1 rounded-full bg-cyan-400" />
+            {d}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className="block outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-transparent rounded-xl">
+        <motion.div
+          className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md shadow-xl p-5 cursor-pointer"
+          whileHover={{ scale: 1.02, y: -4, boxShadow: "0 20px 40px -12px rgba(0,0,0,0.5)" }}
+          whileTap={{ scale: 0.99 }}
+          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+        >
+          {cardContent}
+          <p className="mt-3 text-xs text-cyan-400/80 font-medium">View health system →</p>
+        </motion.div>
+      </Link>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md shadow-xl transition hover:bg-black/60">
-      <div className="p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-2xl">{icon}</span>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-              trendUp ? "bg-emerald-500/30 text-emerald-300" : "bg-rose-500/30 text-rose-300"
-            }`}
-          >
-            {trend} YoY
-          </span>
-        </div>
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-          {title}
-        </h3>
-        <p className="mt-1 text-3xl font-bold text-white">{value}</p>
-        <p className="mt-0.5 text-sm text-slate-400">{subtitle}</p>
-        <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-700"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <ul className="mt-4 space-y-1 text-xs text-slate-400">
-          {details.map((d, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-cyan-400" />
-              {d}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <div className="p-5">{cardContent}</div>
     </div>
   );
 }
