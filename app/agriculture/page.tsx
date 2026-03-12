@@ -12,47 +12,42 @@ import {
 } from "react-simple-maps";
 
 const overviewMetrics = [
-  { label: "Population Covered", value: "62%", desc: "% registered with SHA", status: "warning" },
-  { label: "Active Contributors", value: "48%", desc: "% registered actively contributing", status: "warning" },
-  { label: "Facility Availability", value: "87%", desc: "% facilities operational", status: "on-target" },
-  { label: "Drug Stock Availability", value: "71%", desc: "% facilities with essential drugs", status: "warning" },
+  { label: "Subsidized Fertilizer Uptake", value: "78%", desc: "% of allocated bags distributed", status: "on-target" as const },
+  { label: "Area Under Irrigation", value: "52%", desc: "of target irrigated land", status: "warning" as const },
+  { label: "Farmer Registration", value: "6.2M", desc: "registered in e-voucher system", status: "on-target" as const },
+  { label: "Program Reach", value: "94%", desc: "counties with active distribution", status: "on-target" as const },
 ];
 
-const shaMetrics = [
-  { label: "SHA registrations", value: "29.75M" },
-  { label: "Afyangu users", value: "11.56M" },
-  { label: "Registered population", value: "28.4M" },
-  { label: "Active contributors", value: "13.6M" },
-  { label: "Monthly contributions", value: "KES 4.2B" },
-  { label: "Claims submitted", value: "2.1M" },
-  { label: "Claims approved", value: "1.82M" },
-  { label: "Claims rejected", value: "180K" },
-  { label: "Avg claim processing time", value: "12 days" },
+const programMetrics = [
+  { label: "Subsidized fertilizer (MT)", value: "1.24M" },
+  { label: "Subsidized fertilizer (bags)", value: "6.2M" },
+  { label: "Area under irrigation (ha)", value: "312K" },
+  { label: "Target irrigation (ha)", value: "600K" },
+  { label: "Registered farmers", value: "6.2M" },
+  { label: "Farmers with e-voucher", value: "5.1M" },
+  { label: "Counties in program", value: "44" },
+  { label: "Aggregation centres", value: "1,240" },
+  { label: "Fertilizer depots", value: "890" },
 ];
 
-const healthOutcomes = [
-  { label: "Maternal Mortality Rate", value: "355", unit: "/100K", reason: "Critical development metric" },
-  { label: "Under-5 Mortality", value: "41", unit: "/1000", reason: "Health system performance" },
-  { label: "Malaria incidence", value: "72", unit: "/1000", reason: "Major disease" },
-  { label: "Life expectancy", value: "67", unit: "years", reason: "Macro indicator" },
-];
-
-const workforce = [
-  { label: "Doctors", value: "8,200" },
-  { label: "Nurses", value: "42,000" },
-  { label: "Clinical officers", value: "6,100" },
-  { label: "Community health workers", value: "98,000" },
+const keyOutcomes = [
+  { label: "Maize yield (MT)", value: "3.2M", unit: "MT", reason: "Staple crop production" },
+  { label: "Dairy subsidy beneficiaries", value: "420K", unit: "farmers", reason: "Livestock support" },
+  { label: "Export earnings (agri)", value: "KES 185B", unit: "FY 2024/25", reason: "Horticulture & tea" },
+  { label: "Sector growth", value: "6.2%", unit: "2025/26", reason: "YoY growth target" },
 ];
 
 const countySample = [
-  { name: "Nairobi", coverage: 94, facilityDensity: 12, mortality: "low", vaccination: 89, status: "on-target" },
-  { name: "Mombasa", coverage: 78, facilityDensity: 8, mortality: "medium", vaccination: 82, status: "on-target" },
-  { name: "Kisumu", coverage: 65, facilityDensity: 5, mortality: "medium", vaccination: 71, status: "warning" },
-  { name: "Nakuru", coverage: 72, facilityDensity: 6, mortality: "low", vaccination: 78, status: "on-target" },
-  { name: "Turkana", coverage: 38, facilityDensity: 2, mortality: "high", vaccination: 52, status: "intervention" },
-  { name: "Mandera", coverage: 32, facilityDensity: 1, mortality: "high", vaccination: 44, status: "intervention" },
-  { name: "Kiambu", coverage: 88, facilityDensity: 9, mortality: "low", vaccination: 85, status: "on-target" },
-  { name: "Kakamega", coverage: 58, facilityDensity: 4, mortality: "medium", vaccination: 64, status: "warning" },
+  { name: "Nairobi", fertilizerTons: 12, irrigationHa: 2.1, registeredFarmers: 45, status: "on-target" as const },
+  { name: "Nakuru", fertilizerTons: 89, irrigationHa: 18, registeredFarmers: 320, status: "on-target" as const },
+  { name: "Uasin Gishu", fertilizerTons: 112, irrigationHa: 22, registeredFarmers: 410, status: "on-target" as const },
+  { name: "Trans Nzoia", fertilizerTons: 98, irrigationHa: 15, registeredFarmers: 380, status: "on-target" as const },
+  { name: "Kisumu", fertilizerTons: 54, irrigationHa: 8, registeredFarmers: 180, status: "warning" as const },
+  { name: "Kakamega", fertilizerTons: 62, irrigationHa: 6, registeredFarmers: 220, status: "warning" as const },
+  { name: "Turkana", fertilizerTons: 8, irrigationHa: 1.2, registeredFarmers: 28, status: "intervention" as const },
+  { name: "Mandera", fertilizerTons: 5, irrigationHa: 0.8, registeredFarmers: 18, status: "intervention" as const },
+  { name: "Kiambu", fertilizerTons: 45, irrigationHa: 12, registeredFarmers: 165, status: "on-target" as const },
+  { name: "Meru", fertilizerTons: 71, irrigationHa: 14, registeredFarmers: 290, status: "on-target" as const },
 ];
 
 const KENYA_GEO_URL = "/geojson/gadm41_KEN_1.json";
@@ -210,20 +205,16 @@ function CountyMetricsPanel({
           </div>
           <dl className="grid grid-cols-1 gap-3">
             <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Coverage</dt>
-              <dd className="text-lg font-bold text-white">{data.coverage}%</dd>
+              <dt className="text-xs text-slate-500">Subsidized fertilizer (tons)</dt>
+              <dd className="text-lg font-bold text-white">{data.fertilizerTons}</dd>
             </div>
             <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Vaccination</dt>
-              <dd className="text-lg font-bold text-white">{data.vaccination}%</dd>
+              <dt className="text-xs text-slate-500">Area under irrigation (ha)</dt>
+              <dd className="text-lg font-bold text-white">{data.irrigationHa}K</dd>
             </div>
             <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Facility density</dt>
-              <dd className="text-lg font-bold text-white">{data.facilityDensity} per 100K</dd>
-            </div>
-            <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Mortality</dt>
-              <dd className="text-lg font-bold text-white capitalize">{data.mortality}</dd>
+              <dt className="text-xs text-slate-500">Registered farmers</dt>
+              <dd className="text-lg font-bold text-white">{data.registeredFarmers}K</dd>
             </div>
           </dl>
         </div>
@@ -234,7 +225,7 @@ function CountyMetricsPanel({
         </div>
       ) : (
         <div className="flex-1 flex flex-col justify-center text-center text-slate-400">
-          <p className="text-sm">Click a county on the map to see its key metrics.</p>
+          <p className="text-sm">Click a county on the map to see fertilizer, irrigation & registration.</p>
           <p className="text-xs mt-2 text-slate-500">
             Green = on target · Yellow = warning · Red = intervention needed
           </p>
@@ -266,7 +257,7 @@ function MetricBlock({
   );
 }
 
-export default function HealthcarePage() {
+export default function AgriculturePage() {
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [hoveredCounty, setHoveredCounty] = useState<string | null>(null);
 
@@ -278,7 +269,6 @@ export default function HealthcarePage() {
       </div>
 
       <div className="relative z-0 mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Back link */}
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -293,7 +283,6 @@ export default function HealthcarePage() {
           </Link>
         </motion.div>
 
-        {/* Hero title */}
         <motion.header
           initial={{ scale: 0.72, opacity: 0, y: 30 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -312,7 +301,7 @@ export default function HealthcarePage() {
               transition={{ type: "spring", stiffness: 200, delay: 0.08 }}
               className="text-4xl"
             >
-              🏥
+              🌾
             </motion.span>
             <div>
               <motion.h1
@@ -321,7 +310,7 @@ export default function HealthcarePage() {
                 transition={{ duration: 0.45, delay: 0.12 }}
                 className="text-3xl font-bold tracking-tight text-white sm:text-4xl"
               >
-                State of the Health System
+                Agriculture Transformation
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}
@@ -329,13 +318,12 @@ export default function HealthcarePage() {
                 transition={{ delay: 0.35, duration: 0.35 }}
                 className="mt-1 text-slate-400"
               >
-                Get a 30-second understanding of the health system and drill into problems immediately.
+                Subsidized fertilizer, irrigation, and farmer registration at a glance. Drill into county performance.
               </motion.p>
             </div>
           </div>
         </motion.header>
 
-        {/* County map + metrics — first content, 50/50 */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -361,7 +349,6 @@ export default function HealthcarePage() {
           <CountyMetricsPanel countyName={selectedCounty} countyData={countySample} />
         </motion.section>
 
-        {/* Top 4 metrics - at a glance */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {overviewMetrics.map((m, i) => (
             <motion.div
@@ -384,10 +371,9 @@ export default function HealthcarePage() {
           ))}
         </div>
 
-        {/* SHA / Insurance Performance */}
-        <MetricBlock title="SHA / Insurance Performance" delay={0.15}>
+        <MetricBlock title="Subsidized Fertilizer · Irrigation · Farmer Registration" delay={0.15}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {shaMetrics.map((m) => (
+            {programMetrics.map((m) => (
               <div key={m.label} className="rounded-lg bg-white/5 p-3">
                 <p className="text-xs text-slate-500">{m.label}</p>
                 <p className="mt-1 font-semibold text-white">{m.value}</p>
@@ -396,48 +382,40 @@ export default function HealthcarePage() {
           </div>
         </MetricBlock>
 
-        {/* Health Outcomes + Workforce side by side */}
         <div className="grid lg:grid-cols-2 gap-6 mt-6">
-          <MetricBlock title="Health Outcomes" delay={0.2}>
+          <MetricBlock title="Key Outcomes" delay={0.2}>
             <ul className="space-y-3">
-              {healthOutcomes.map((o) => (
+              {keyOutcomes.map((o) => (
                 <li key={o.label} className="flex justify-between items-start gap-4 rounded-lg bg-white/5 p-3">
                   <div>
                     <p className="font-medium text-white">{o.label}</p>
                     <p className="text-xs text-slate-500">{o.reason}</p>
                   </div>
                   <span className="text-lg font-bold text-white whitespace-nowrap">
-                    {o.value}{o.unit}
+                    {o.value} {o.unit}
                   </span>
                 </li>
               ))}
             </ul>
           </MetricBlock>
-          <MetricBlock title="Workforce Dashboard" delay={0.25}>
-            <div className="grid grid-cols-2 gap-4">
-              {workforce.map((w) => (
-                <div key={w.label} className="rounded-lg bg-white/5 p-3">
-                  <p className="text-xs text-slate-500">{w.label}</p>
-                  <p className="mt-1 text-xl font-bold text-white">{w.value}</p>
-                </div>
-              ))}
+          <MetricBlock title="Program Summary" delay={0.25}>
+            <div className="space-y-3 text-slate-300 text-sm">
+              <p>
+                <strong className="text-white">Subsidized fertilizer:</strong> National program distributes fertilizer at reduced prices via e-voucher; 6.2M bags (1.24M MT) in current season.
+              </p>
+              <p>
+                <strong className="text-white">Area under irrigation:</strong> Target 600K ha; current 312K ha under irrigation. Expansion focused on ASAL and high-potential counties.
+              </p>
+              <p>
+                <strong className="text-white">Farmer registration:</strong> 6.2M farmers registered in the e-voucher system; 5.1M active with redeemed vouchers. Registration enables targeted subsidy and extension.
+              </p>
             </div>
           </MetricBlock>
         </div>
 
         <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-slate-500 space-y-1">
-          <p>Kenya Health Command Center · Data indicative · Source: GoK / SHA</p>
-          <p>
-            Data source:{" "}
-            <a
-              href="https://cr.dha.go.ke/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-slate-400 hover:text-white underline underline-offset-2 transition-colors"
-            >
-              Kenya Client Registry (DHA)
-            </a>
-          </p>
+          <p>Kenya Agriculture Command Center · Data indicative · Source: GoK / MoALF</p>
+          <p>Fertilizer, irrigation and registration data: National Agriculture Program</p>
         </footer>
       </div>
     </div>

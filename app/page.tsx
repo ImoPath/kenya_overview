@@ -25,7 +25,7 @@ const metrics = [
     trend: "+18%",
     trendUp: true,
     details: ["Boma Yangu: 8.1M registered", "156K units completed", "Hustler Fund housing kitty active"],
-    href: undefined,
+    href: "/housing",
   },
   {
     title: "Agriculture Transformation",
@@ -36,7 +36,7 @@ const metrics = [
     trend: "+4.1%",
     trendUp: true,
     details: ["Dairy subsidy & aggregation", "Fertilizer program expanded", "Export earnings up 22%"],
-    href: undefined,
+    href: "/agriculture",
   },
   {
     title: "Job Creation",
@@ -46,8 +46,8 @@ const metrics = [
     progress: 85,
     trend: "+9%",
     trendUp: true,
-    details: ["Digital jobs: 124K", "Manufacturing: 89K", "Tourism recovery: 45K"],
-    href: undefined,
+    details: ["Construction/Housing: 156K", "Digital (Jitume/TVET): 124K", "Green works & overseas: 64K"],
+    href: "/jobs",
   },
   {
     title: "Digital Transformation",
@@ -58,7 +58,18 @@ const metrics = [
     trend: "+7%",
     trendUp: true,
     details: ["e-Citizen services: 15K+", "Digital ID rollout", "Fiber to 47 counties"],
-    href: undefined,
+    href: "/digital-transformation",
+  },
+  {
+    title: "Education",
+    icon: "📚",
+    value: "342K",
+    subtitle: "TVET enrollments (FY 2025/26)",
+    progress: 88,
+    trend: "+12%",
+    trendUp: true,
+    details: ["JSS: 1.24M Grade 7", "HELB loans: KES 52B", "298K students funded"],
+    href: "/education",
   },
 ];
 
@@ -117,7 +128,21 @@ function KpiCard({
           transition={{ type: "spring", stiffness: 400, damping: 25 }}
         >
           {cardContent}
-          <p className="mt-3 text-xs text-cyan-400/80 font-medium">View health system →</p>
+          <p className="mt-3 text-xs text-cyan-400/80 font-medium">
+            {href === "/healthcare"
+              ? "View health system →"
+              : href === "/housing"
+                ? "View housing →"
+                : href === "/agriculture"
+                  ? "View agriculture →"
+                  : href === "/jobs"
+                    ? "View job creation →"
+                    : href === "/digital-transformation"
+                      ? "View digital transformation →"
+                      : href === "/education"
+                        ? "View education →"
+                        : "View details →"}
+          </p>
         </motion.div>
       </Link>
     );
@@ -167,7 +192,7 @@ export default function Home() {
         </header>
 
         {/* KPI strip - summary numbers */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {metrics.map((m, i) => (
             <div
               key={i}

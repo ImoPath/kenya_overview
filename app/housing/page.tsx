@@ -12,47 +12,57 @@ import {
 } from "react-simple-maps";
 
 const overviewMetrics = [
-  { label: "Population Covered", value: "62%", desc: "% registered with SHA", status: "warning" },
-  { label: "Active Contributors", value: "48%", desc: "% registered actively contributing", status: "warning" },
-  { label: "Facility Availability", value: "87%", desc: "% facilities operational", status: "on-target" },
-  { label: "Drug Stock Availability", value: "71%", desc: "% facilities with essential drugs", status: "warning" },
+  { label: "Boma Yangu Registrations", value: "8.1M", desc: "Total registered on Boma Yangu", status: "on-target" as const },
+  { label: "Completed Units", value: "156K", desc: "Units delivered to date", status: "on-target" as const },
+  { label: "Active Construction Sites", value: "247", desc: "Sites under construction", status: "on-target" as const },
+  { label: "Jobs Created", value: "412K", desc: "Direct & indirect from housing", status: "on-target" as const },
 ];
 
-const shaMetrics = [
-  { label: "SHA registrations", value: "29.75M" },
-  { label: "Afyangu users", value: "11.56M" },
-  { label: "Registered population", value: "28.4M" },
-  { label: "Active contributors", value: "13.6M" },
-  { label: "Monthly contributions", value: "KES 4.2B" },
-  { label: "Claims submitted", value: "2.1M" },
-  { label: "Claims approved", value: "1.82M" },
-  { label: "Claims rejected", value: "180K" },
-  { label: "Avg claim processing time", value: "12 days" },
+const bomaYanguMetrics = [
+  { label: "Total registrations", value: "8.1M" },
+  { label: "Active savers", value: "2.4M" },
+  { label: "Monthly savings (BYS)", value: "KES 1.8B" },
+  { label: "Units allocated", value: "89K" },
+  { label: "Pending allocations", value: "312K" },
+  { label: "Hustler Fund housing kitty", value: "Active" },
 ];
 
-const healthOutcomes = [
-  { label: "Maternal Mortality Rate", value: "355", unit: "/100K", reason: "Critical development metric" },
-  { label: "Under-5 Mortality", value: "41", unit: "/1000", reason: "Health system performance" },
-  { label: "Malaria incidence", value: "72", unit: "/1000", reason: "Major disease" },
-  { label: "Life expectancy", value: "67", unit: "years", reason: "Macro indicator" },
+const projectMetrics = [
+  { label: "Completed units", value: "156,000" },
+  { label: "Ongoing units", value: "198,000" },
+  { label: "Planned units (pipeline)", value: "250,000" },
+  { label: "Affordable (BYP)", value: "312K" },
+  { label: "Social housing", value: "48K" },
+  { label: "KMRC units", value: "84K" },
 ];
 
-const workforce = [
-  { label: "Doctors", value: "8,200" },
-  { label: "Nurses", value: "42,000" },
-  { label: "Clinical officers", value: "6,100" },
-  { label: "Community health workers", value: "98,000" },
+const constructionSites = [
+  { name: "Nairobi (Starehe, Park Road)", units: 1370, status: "ongoing", county: "Nairobi" },
+  { name: "Nairobi (Mukuru)", units: 2400, status: "ongoing", county: "Nairobi" },
+  { name: "Nakuru (Bondeni)", units: 800, status: "ongoing", county: "Nakuru" },
+  { name: "Mombasa (Buxton)", units: 560, status: "ongoing", county: "Mombasa" },
+  { name: "Kisumu (Manyatta)", units: 1200, status: "ongoing", county: "Kisumu" },
+  { name: "Kiambu (Ruiru)", units: 2000, status: "ongoing", county: "Kiambu" },
+  { name: "Eldoret (Huruma)", units: 450, status: "ongoing", county: "Uasin Gishu" },
+];
+
+const jobsCreated = [
+  { category: "Direct construction", value: "187K" },
+  { category: "Materials & supply chain", value: "124K" },
+  { category: "Informal / casual", value: "76K" },
+  { category: "Professional services", value: "25K" },
+  { category: "Total (direct + indirect)", value: "412K" },
 ];
 
 const countySample = [
-  { name: "Nairobi", coverage: 94, facilityDensity: 12, mortality: "low", vaccination: 89, status: "on-target" },
-  { name: "Mombasa", coverage: 78, facilityDensity: 8, mortality: "medium", vaccination: 82, status: "on-target" },
-  { name: "Kisumu", coverage: 65, facilityDensity: 5, mortality: "medium", vaccination: 71, status: "warning" },
-  { name: "Nakuru", coverage: 72, facilityDensity: 6, mortality: "low", vaccination: 78, status: "on-target" },
-  { name: "Turkana", coverage: 38, facilityDensity: 2, mortality: "high", vaccination: 52, status: "intervention" },
-  { name: "Mandera", coverage: 32, facilityDensity: 1, mortality: "high", vaccination: 44, status: "intervention" },
-  { name: "Kiambu", coverage: 88, facilityDensity: 9, mortality: "low", vaccination: 85, status: "on-target" },
-  { name: "Kakamega", coverage: 58, facilityDensity: 4, mortality: "medium", vaccination: 64, status: "warning" },
+  { name: "Nairobi", completedUnits: 42000, ongoingUnits: 38000, sites: 68, jobs: 125000, status: "on-target" as const },
+  { name: "Mombasa", completedUnits: 12000, ongoingUnits: 8400, sites: 22, jobs: 38000, status: "on-target" as const },
+  { name: "Kisumu", completedUnits: 6800, ongoingUnits: 5200, sites: 14, jobs: 22000, status: "on-target" as const },
+  { name: "Nakuru", completedUnits: 9800, ongoingUnits: 7600, sites: 18, jobs: 32000, status: "on-target" as const },
+  { name: "Kiambu", completedUnits: 18500, ongoingUnits: 22000, sites: 42, jobs: 68000, status: "on-target" as const },
+  { name: "Uasin Gishu", completedUnits: 3200, ongoingUnits: 2800, sites: 8, jobs: 12000, status: "warning" as const },
+  { name: "Kakamega", completedUnits: 2100, ongoingUnits: 1800, sites: 5, jobs: 7500, status: "warning" as const },
+  { name: "Machakos", completedUnits: 4500, ongoingUnits: 6200, sites: 12, jobs: 18500, status: "on-target" as const },
 ];
 
 const KENYA_GEO_URL = "/geojson/gadm41_KEN_1.json";
@@ -64,7 +74,6 @@ const ZOOM_STEP = 0.35;
 const COUNTY_STYLES: Record<string, { fill: string; stroke: string; fillHover: string }> = {
   "on-target": { fill: "rgba(16, 185, 129, 0.5)", stroke: "rgba(52, 211, 153, 0.7)", fillHover: "rgba(16, 185, 129, 0.75)" },
   warning: { fill: "rgba(245, 158, 11, 0.5)", stroke: "rgba(251, 191, 36, 0.7)", fillHover: "rgba(245, 158, 11, 0.75)" },
-  intervention: { fill: "rgba(244, 63, 94, 0.5)", stroke: "rgba(251, 113, 133, 0.7)", fillHover: "rgba(244, 63, 94, 0.75)" },
   default: { fill: "rgba(71, 85, 105, 0.4)", stroke: "rgba(100, 116, 139, 0.6)", fillHover: "rgba(71, 85, 105, 0.6)" },
 };
 
@@ -192,7 +201,7 @@ function CountyMetricsPanel({
   return (
     <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md p-5 h-full min-h-[320px] lg:min-h-[400px] flex flex-col">
       <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
-        County metrics
+        County housing metrics
       </h2>
       {data ? (
         <div className="space-y-4 flex-1">
@@ -201,29 +210,27 @@ function CountyMetricsPanel({
             className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-medium ${
               data.status === "on-target"
                 ? "bg-emerald-500/20 text-emerald-400"
-                : data.status === "warning"
-                  ? "bg-amber-500/20 text-amber-400"
-                  : "bg-rose-500/20 text-rose-400"
+                : "bg-amber-500/20 text-amber-400"
             }`}
           >
-            {data.status === "on-target" ? "On target" : data.status === "warning" ? "Warning" : "Intervention needed"}
+            {data.status === "on-target" ? "On target" : "Growing"}
           </div>
           <dl className="grid grid-cols-1 gap-3">
             <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Coverage</dt>
-              <dd className="text-lg font-bold text-white">{data.coverage}%</dd>
+              <dt className="text-xs text-slate-500">Completed units</dt>
+              <dd className="text-lg font-bold text-white">{data.completedUnits.toLocaleString()}</dd>
             </div>
             <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Vaccination</dt>
-              <dd className="text-lg font-bold text-white">{data.vaccination}%</dd>
+              <dt className="text-xs text-slate-500">Ongoing units</dt>
+              <dd className="text-lg font-bold text-white">{data.ongoingUnits.toLocaleString()}</dd>
             </div>
             <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Facility density</dt>
-              <dd className="text-lg font-bold text-white">{data.facilityDensity} per 100K</dd>
+              <dt className="text-xs text-slate-500">Active sites</dt>
+              <dd className="text-lg font-bold text-white">{data.sites}</dd>
             </div>
             <div className="rounded-lg bg-white/5 p-3">
-              <dt className="text-xs text-slate-500">Mortality</dt>
-              <dd className="text-lg font-bold text-white capitalize">{data.mortality}</dd>
+              <dt className="text-xs text-slate-500">Jobs created</dt>
+              <dd className="text-lg font-bold text-white">{data.jobs.toLocaleString()}</dd>
             </div>
           </dl>
         </div>
@@ -234,9 +241,9 @@ function CountyMetricsPanel({
         </div>
       ) : (
         <div className="flex-1 flex flex-col justify-center text-center text-slate-400">
-          <p className="text-sm">Click a county on the map to see its key metrics.</p>
+          <p className="text-sm">Click a county on the map to see housing metrics.</p>
           <p className="text-xs mt-2 text-slate-500">
-            Green = on target · Yellow = warning · Red = intervention needed
+            Green = on target · Yellow = growing
           </p>
         </div>
       )}
@@ -266,7 +273,7 @@ function MetricBlock({
   );
 }
 
-export default function HealthcarePage() {
+export default function HousingPage() {
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [hoveredCounty, setHoveredCounty] = useState<string | null>(null);
 
@@ -278,7 +285,6 @@ export default function HealthcarePage() {
       </div>
 
       <div className="relative z-0 mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Back link */}
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -293,7 +299,6 @@ export default function HealthcarePage() {
           </Link>
         </motion.div>
 
-        {/* Hero title */}
         <motion.header
           initial={{ scale: 0.72, opacity: 0, y: 30 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -312,7 +317,7 @@ export default function HealthcarePage() {
               transition={{ type: "spring", stiffness: 200, delay: 0.08 }}
               className="text-4xl"
             >
-              🏥
+              🏠
             </motion.span>
             <div>
               <motion.h1
@@ -321,7 +326,7 @@ export default function HealthcarePage() {
                 transition={{ duration: 0.45, delay: 0.12 }}
                 className="text-3xl font-bold tracking-tight text-white sm:text-4xl"
               >
-                State of the Health System
+                Affordable Housing Programme
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}
@@ -329,13 +334,12 @@ export default function HealthcarePage() {
                 transition={{ delay: 0.35, duration: 0.35 }}
                 className="mt-1 text-slate-400"
               >
-                Get a 30-second understanding of the health system and drill into problems immediately.
+                Boma Yangu registrations, projects, active construction sites, and jobs created.
               </motion.p>
             </div>
           </div>
         </motion.header>
 
-        {/* County map + metrics — first content, 50/50 */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -361,7 +365,6 @@ export default function HealthcarePage() {
           <CountyMetricsPanel countyName={selectedCounty} countyData={countySample} />
         </motion.section>
 
-        {/* Top 4 metrics - at a glance */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {overviewMetrics.map((m, i) => (
             <motion.div
@@ -369,13 +372,7 @@ export default function HealthcarePage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, delay: 0.1 + i * 0.05 }}
-              className={`rounded-xl border backdrop-blur-md p-4 ${
-                m.status === "on-target"
-                  ? "border-emerald-500/30 bg-emerald-500/10"
-                  : m.status === "warning"
-                    ? "border-amber-500/30 bg-amber-500/10"
-                    : "border-rose-500/30 bg-rose-500/10"
-              }`}
+              className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-md p-4"
             >
               <p className="text-xs font-medium uppercase text-slate-400">{m.label}</p>
               <p className="mt-1 text-2xl font-bold text-white">{m.value}</p>
@@ -384,10 +381,9 @@ export default function HealthcarePage() {
           ))}
         </div>
 
-        {/* SHA / Insurance Performance */}
-        <MetricBlock title="SHA / Insurance Performance" delay={0.15}>
+        <MetricBlock title="Boma Yangu Registrations" delay={0.15}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {shaMetrics.map((m) => (
+            {bomaYanguMetrics.map((m) => (
               <div key={m.label} className="rounded-lg bg-white/5 p-3">
                 <p className="text-xs text-slate-500">{m.label}</p>
                 <p className="mt-1 font-semibold text-white">{m.value}</p>
@@ -396,47 +392,62 @@ export default function HealthcarePage() {
           </div>
         </MetricBlock>
 
-        {/* Health Outcomes + Workforce side by side */}
         <div className="grid lg:grid-cols-2 gap-6 mt-6">
-          <MetricBlock title="Health Outcomes" delay={0.2}>
-            <ul className="space-y-3">
-              {healthOutcomes.map((o) => (
-                <li key={o.label} className="flex justify-between items-start gap-4 rounded-lg bg-white/5 p-3">
-                  <div>
-                    <p className="font-medium text-white">{o.label}</p>
-                    <p className="text-xs text-slate-500">{o.reason}</p>
-                  </div>
-                  <span className="text-lg font-bold text-white whitespace-nowrap">
-                    {o.value}{o.unit}
-                  </span>
-                </li>
+          <MetricBlock title="Projects — Completed & Ongoing Units" delay={0.2}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {projectMetrics.map((m) => (
+                <div key={m.label} className="rounded-lg bg-white/5 p-3">
+                  <p className="text-xs text-slate-500">{m.label}</p>
+                  <p className="mt-1 font-semibold text-white">{m.value}</p>
+                </div>
               ))}
-            </ul>
+            </div>
           </MetricBlock>
-          <MetricBlock title="Workforce Dashboard" delay={0.25}>
+          <MetricBlock title="Jobs Created" delay={0.25}>
             <div className="grid grid-cols-2 gap-4">
-              {workforce.map((w) => (
-                <div key={w.label} className="rounded-lg bg-white/5 p-3">
-                  <p className="text-xs text-slate-500">{w.label}</p>
-                  <p className="mt-1 text-xl font-bold text-white">{w.value}</p>
+              {jobsCreated.map((j, i) => (
+                <div key={i} className="rounded-lg bg-white/5 p-3">
+                  <p className="text-xs text-slate-500">{j.category}</p>
+                  <p className="mt-1 text-xl font-bold text-white">{j.value}</p>
                 </div>
               ))}
             </div>
           </MetricBlock>
         </div>
 
+        <MetricBlock title="Active Construction Sites (sample)" delay={0.3}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/20 text-slate-400">
+                  <th className="pb-3 pr-4 font-medium">Site</th>
+                  <th className="pb-3 pr-4 font-medium">County</th>
+                  <th className="pb-3 pr-4 font-medium">Units</th>
+                  <th className="pb-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="text-white">
+                {constructionSites.map((site, i) => (
+                  <tr key={i} className="border-b border-white/10">
+                    <td className="py-3 pr-4 font-medium">{site.name}</td>
+                    <td className="py-3 pr-4">{site.county}</td>
+                    <td className="py-3 pr-4">{site.units.toLocaleString()}</td>
+                    <td className="py-3">
+                      <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs text-emerald-400">
+                        {site.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </MetricBlock>
+
         <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-slate-500 space-y-1">
-          <p>Kenya Health Command Center · Data indicative · Source: GoK / SHA</p>
+          <p>Kenya Affordable Housing Programme · Data indicative · Source: GoK / SHP</p>
           <p>
-            Data source:{" "}
-            <a
-              href="https://cr.dha.go.ke/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-slate-400 hover:text-white underline underline-offset-2 transition-colors"
-            >
-              Kenya Client Registry (DHA)
-            </a>
+            Boma Yangu · KMRC · State Department for Housing and Urban Development
           </p>
         </footer>
       </div>
