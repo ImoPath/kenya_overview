@@ -6,15 +6,26 @@ import { motion } from "framer-motion";
 
 const metrics = [
   {
-    title: "Universal Healthcare",
-    icon: "🏥",
-    value: "78%",
-    subtitle: "Kenyans with NHIF coverage",
-    progress: 78,
-    trend: "+12%",
+    title: "Agriculture",
+    icon: "🌾",
+    value: "6.2%",
+    subtitle: "Sector growth (2025/26)",
+    progress: 72,
+    trend: "+4.1%",
     trendUp: true,
-    details: ["4.2M new enrolments", "47 counties with improved facilities", "UHC pilot in 10 counties"],
-    href: "/healthcare",
+    details: ["Dairy subsidy & aggregation", "Fertilizer program expanded", "Export earnings up 22%"],
+    href: "/agriculture",
+  },
+  {
+    title: "MSME Economy",
+    icon: "🏪",
+    value: "5.4M",
+    subtitle: "Estimated active MSMEs",
+    progress: 64,
+    trend: "+6%",
+    trendUp: true,
+    details: ["Hustler Fund: KES 56B disbursed", "Access to credit improving", "Market digitization pilots"],
+    href: "/msme-economy",
   },
   {
     title: "Affordable Housing",
@@ -28,50 +39,28 @@ const metrics = [
     href: "/housing",
   },
   {
-    title: "Agriculture Transformation",
-    icon: "🌾",
-    value: "6.2%",
-    subtitle: "Sector growth (2025/26)",
-    progress: 72,
-    trend: "+4.1%",
-    trendUp: true,
-    details: ["Dairy subsidy & aggregation", "Fertilizer program expanded", "Export earnings up 22%"],
-    href: "/agriculture",
-  },
-  {
-    title: "Job Creation",
-    icon: "💼",
-    value: "847K",
-    subtitle: "New jobs (FY 2025/26)",
-    progress: 85,
-    trend: "+9%",
-    trendUp: true,
-    details: ["Construction/Housing: 156K", "Digital (Jitume/TVET): 124K", "Green works & overseas: 64K"],
-    href: "/jobs",
-  },
-  {
-    title: "Digital Transformation",
-    icon: "📡",
-    value: "94%",
-    subtitle: "4G population coverage",
-    progress: 94,
-    trend: "+7%",
-    trendUp: true,
-    details: ["e-Citizen services: 15K+", "Digital ID rollout", "Fiber to 47 counties"],
-    href: "/digital-transformation",
-  },
-  {
-    title: "Education",
-    icon: "📚",
-    value: "342K",
-    subtitle: "TVET enrollments (FY 2025/26)",
-    progress: 88,
+    title: "Universal Health Care",
+    icon: "🏥",
+    value: "78%",
+    subtitle: "Kenyans with coverage (indicative)",
+    progress: 78,
     trend: "+12%",
     trendUp: true,
-    details: ["JSS: 1.24M Grade 7", "HELB loans: KES 52B", "298K students funded"],
-    href: "/education",
+    details: ["Primary care strengthening", "Facility upgrades ongoing", "Coverage expansion efforts"],
+    href: "/healthcare",
   },
-];
+  {
+    title: "Digital Superhighway and Creative Economy",
+    icon: "📡",
+    value: "1,847",
+    subtitle: "Public Wi‑Fi hotspots installed",
+    progress: 81,
+    trend: "+9%",
+    trendUp: true,
+    details: ["Fiber expansion across counties", "Connected public institutions", "Creative economy enablement"],
+    href: "/digital-superhighway-and-creative-economy",
+  },
+] as const;
 
 function KpiCard({
   title,
@@ -83,7 +72,7 @@ function KpiCard({
   trendUp,
   details,
   href,
-}: (typeof metrics)[0]) {
+}: (typeof metrics)[number]) {
   const cardContent = (
     <>
       <div className="mb-3 flex items-center justify-between">
@@ -118,40 +107,23 @@ function KpiCard({
     </>
   );
 
-  if (href) {
-    return (
-      <Link href={href} className="block outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-transparent rounded-xl">
-        <motion.div
-          className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md shadow-xl p-5 cursor-pointer"
-          whileHover={{ scale: 1.02, y: -4, boxShadow: "0 20px 40px -12px rgba(0,0,0,0.5)" }}
-          whileTap={{ scale: 0.99 }}
-          transition={{ type: "spring", stiffness: 400, damping: 25 }}
-        >
-          {cardContent}
-          <p className="mt-3 text-xs text-cyan-400/80 font-medium">
-            {href === "/healthcare"
-              ? "View health system →"
-              : href === "/housing"
-                ? "View housing →"
-                : href === "/agriculture"
-                  ? "View agriculture →"
-                  : href === "/jobs"
-                    ? "View job creation →"
-                    : href === "/digital-transformation"
-                      ? "View digital transformation →"
-                      : href === "/education"
-                        ? "View education →"
-                        : "View details →"}
-          </p>
-        </motion.div>
-      </Link>
-    );
-  }
-
   return (
-    <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md shadow-xl transition hover:bg-black/60">
-      <div className="p-5">{cardContent}</div>
-    </div>
+    <Link
+      href={href}
+      className="block rounded-xl outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-transparent"
+    >
+      <motion.div
+        className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md shadow-xl p-5 cursor-pointer"
+        whileHover={{ scale: 1.02, y: -4, boxShadow: "0 20px 40px -12px rgba(0,0,0,0.5)" }}
+        whileTap={{ scale: 0.99 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      >
+        {cardContent}
+        <p className="mt-3 text-xs text-cyan-400/80 font-medium">
+          View details →
+        </p>
+      </motion.div>
+    </Link>
   );
 }
 
@@ -192,10 +164,10 @@ export default function Home() {
         </header>
 
         {/* KPI strip - summary numbers */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {metrics.map((m, i) => (
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {metrics.map((m) => (
             <div
-              key={i}
+              key={m.href}
               className="rounded-lg border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-sm"
             >
               <p className="text-xs font-medium uppercase text-slate-400">{m.title}</p>
@@ -206,8 +178,8 @@ export default function Home() {
 
         {/* Main dashboard grid - Power BI tile layout */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {metrics.map((m, i) => (
-            <KpiCard key={i} {...m} />
+          {metrics.map((m) => (
+            <KpiCard key={m.href} {...m} />
           ))}
         </div>
 

@@ -561,7 +561,7 @@ export default function HealthcarePage() {
                 transition={{ duration: 0.45, delay: 0.12 }}
                 className="text-3xl font-bold tracking-tight text-white sm:text-4xl"
               >
-                State of the Health System
+                Universal Health Care
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}

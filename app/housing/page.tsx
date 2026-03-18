@@ -326,7 +326,7 @@ export default function HousingPage() {
                 transition={{ duration: 0.45, delay: 0.12 }}
                 className="text-3xl font-bold tracking-tight text-white sm:text-4xl"
               >
-                Affordable Housing Programme
+                Affordable Housing
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}

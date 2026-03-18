@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Agriculture Transformation | Kenya Agriculture Overview",
+  title: "Agriculture | Kenya Agriculture Overview",
   description:
     "National agriculture overview: subsidized fertilizer, area under irrigation, farmer registration. County-level program performance.",
 };

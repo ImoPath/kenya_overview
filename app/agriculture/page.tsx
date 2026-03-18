@@ -310,7 +310,7 @@ export default function AgriculturePage() {
                 transition={{ duration: 0.45, delay: 0.12 }}
                 className="text-3xl font-bold tracking-tight text-white sm:text-4xl"
               >
-                Agriculture Transformation
+                Agriculture
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}
