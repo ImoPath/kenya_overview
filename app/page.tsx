@@ -161,7 +161,7 @@ export default function Home() {
       {/* Background: skyline image with overlay */}
       <div className="fixed inset-0 -z-10">
         <Image
-          src="/skyline.jpg"
+          src="https://res.cloudinary.com/dirib3jmw/image/upload/v1773815336/skyline_nkip6b.jpg"
           alt="Nairobi skyline"
           fill
           className="object-cover"
