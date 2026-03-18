@@ -264,7 +264,7 @@ export default function AgriculturePage() {
   return (
     <div className="relative min-h-screen overflow-auto">
       <div className="fixed inset-0 -z-10">
-        <Image src="/skyline.jpg" alt="" fill className="object-cover" priority sizes="100vw" />
+        <Image src="https://res.cloudinary.com/dirib3jmw/image/upload/v1773815336/skyline_nkip6b.jpg" alt="Nairobi skyline" fill className="object-cover" priority sizes="100vw" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-black/90" aria-hidden />
       </div>
 
