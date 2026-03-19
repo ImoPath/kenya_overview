@@ -14,7 +14,7 @@ import {
 /** Map county row: name + status for coloring (derived from population data) */
 type CountyMapRow = { name: string; status: string };
 
-const KENYA_GEO_URL = "/geojson/gadm41_KEN_1.json";
+const KENYA_GEO_URL = "geojson/gadm41_KEN_1.json";
 const MAP_CENTER: [number, number] = [37.9, -0.2];
 const MIN_ZOOM = 0.8;
 const MAX_ZOOM = 3;
@@ -42,15 +42,14 @@ export type RegistrationRow = {
 
 /** SHA uptake data from DHA API (sha-uptake-data) */
 export type ShaUptakeRow = {
-  frCode: string;
+  frcode: string;
   transacting_facility: string;
-  Licensed_Status: string;
-  Active_Status: string;
-  facilityName: string;
+  licensed_status: string;
+  active_status: string;
+  facilityname: string;
   address_county: string;
-  facilityAgent: string;
-  kephLevel: string;
-  last_modified_date: string;
+  facilityagent: string;
+  kephlevel: string;
 };
 
 /** Fallback when API is non-200 or returns no data — sample Kenya population by county/gender/age */
@@ -337,8 +336,6 @@ export default function HealthcarePage() {
   const [shaUptakeData, setShaUptakeData] = useState<ShaUptakeRow[] | null>(null);
   const [shaUptakeLoading, setShaUptakeLoading] = useState(false);
   const [shaUptakeError, setShaUptakeError] = useState<string | null>(null);
-  const [shaUptakeLastModified, setShaUptakeLastModified] = useState("");
-
   function apiErrorFromResponse(b: { error?: string; detail?: string }, fallback: string): string {
     if (b.detail) return b.error ? `${b.error}: ${b.detail}` : b.detail;
     return b.error ?? fallback;
@@ -383,7 +380,7 @@ export default function HealthcarePage() {
     }
     setRegistrationError(null);
     setRegistrationLoading(true);
-    fetch(`/api/healthcare/registration-data?${params.toString()}`)
+    fetch(`api/healthcare/registration-data?${params.toString()}`)
       .then((res) => {
         if (!res.ok) {
           return res.json().then((b: { error?: string; detail?: string }) => {
@@ -405,19 +402,9 @@ export default function HealthcarePage() {
   }
 
   function fetchShaUptake() {
-    const trimmed = shaUptakeLastModified.trim();
-    if (trimmed) {
-      const d = new Date(trimmed);
-      if (isNaN(d.getTime())) {
-        setShaUptakeError("Invalid date/time. Use ISO 8601 UTC (e.g. 2026-03-12T09:01:32Z).");
-        return;
-      }
-    }
     setShaUptakeError(null);
     setShaUptakeLoading(true);
-    const params = new URLSearchParams();
-    if (trimmed) params.set("last_modified_date", new Date(trimmed).toISOString());
-    fetch(`/api/healthcare/sha-uptake-data${params.toString() ? `?${params.toString()}` : ""}`)
+    fetch("api/healthcare/sha-uptake-data")
       .then((res) => {
         if (!res.ok) {
           return res.json().then((b: { error?: string; detail?: string }) => {
@@ -444,7 +431,7 @@ export default function HealthcarePage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/healthcare/population-data")
+    fetch("api/healthcare/population-data")
       .then((res) => {
         if (!res.ok) return res.json().then((b: { error?: string; detail?: string }) => { throw new Error(apiErrorFromResponse(b, res.statusText)); });
         return res.json();
@@ -628,8 +615,8 @@ export default function HealthcarePage() {
           )}
         </div>
 
-        {/* Kenya Population Data from protected DHA API (fallback when non-200 or empty) */}
-        <MetricBlock title="Kenya Population Data (DHA)" delay={0.12}>
+        {/* Kenya Population Data from Postgres (fallback when unavailable or empty) */}
+        <MetricBlock title="Kenya Population Data (Postgres)" delay={0.12}>
           {populationLoading && (
             <p className="text-slate-400">Loading population data…</p>
           )}
@@ -697,8 +684,8 @@ export default function HealthcarePage() {
           )}
         </MetricBlock>
 
-        {/* Registration Data (DHA) with filters */}
-        <MetricBlock title="Registration Data (DHA)" delay={0.14}>
+        {/* Registration Data (Postgres) with filters */}
+        <MetricBlock title="Registration Data (Postgres)" delay={0.14}>
           <div className="space-y-4">
             <div className="flex flex-wrap gap-4 items-end">
               <div className="flex flex-wrap gap-3 items-center">
@@ -817,25 +804,13 @@ export default function HealthcarePage() {
           </div>
         </MetricBlock>
 
-        {/* SHA Uptake Data (DHA) — all data or incremental by last_modified_date */}
-        <MetricBlock title="SHA Uptake Data (DHA)" delay={0.145}>
+        {/* SHA Uptake Data from Postgres */}
+        <MetricBlock title="SHA Uptake Data (Postgres)" delay={0.145}>
           <div className="space-y-4">
             <p className="text-sm text-slate-400">
-              Fetch all facility uptake data, or use last modified date (ISO 8601 UTC) for incremental sync.
+              Fetch facility SHA uptake data from the `taifacare_sha_uptake` table.
             </p>
             <div className="flex flex-wrap gap-4 items-end">
-              <div className="min-w-[260px]">
-                <label className="block text-xs text-slate-500 mb-1">
-                  Last modified (optional — leave empty for all data)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 2026-03-12T09:01:32Z"
-                  value={shaUptakeLastModified}
-                  onChange={(e) => { setShaUptakeLastModified(e.target.value); setShaUptakeError(null); }}
-                  className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
               <button
                 type="button"
                 onClick={fetchShaUptake}
@@ -866,21 +841,19 @@ export default function HealthcarePage() {
                           <th className="px-3 py-2 font-medium">Active</th>
                           <th className="px-3 py-2 font-medium">Transaction</th>
                           <th className="px-3 py-2 font-medium">Agent</th>
-                          <th className="px-3 py-2 font-medium">Last modified</th>
                         </tr>
                       </thead>
                       <tbody className="text-white">
                         {shaUptakeData.map((row, i) => (
                           <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                            <td className="px-3 py-2">{row.frCode ?? "—"}</td>
-                            <td className="px-3 py-2">{row.facilityName ?? "—"}</td>
+                            <td className="px-3 py-2">{row.frcode ?? "—"}</td>
+                            <td className="px-3 py-2">{row.facilityname ?? "—"}</td>
                             <td className="px-3 py-2">{row.address_county ?? "—"}</td>
-                            <td className="px-3 py-2">{row.kephLevel ?? "—"}</td>
-                            <td className="px-3 py-2">{row.Licensed_Status ?? "—"}</td>
-                            <td className="px-3 py-2">{row.Active_Status ?? "—"}</td>
+                            <td className="px-3 py-2">{row.kephlevel ?? "—"}</td>
+                            <td className="px-3 py-2">{row.licensed_status ?? "—"}</td>
+                            <td className="px-3 py-2">{row.active_status ?? "—"}</td>
                             <td className="px-3 py-2">{row.transacting_facility ?? "—"}</td>
-                            <td className="px-3 py-2">{row.facilityAgent ?? "—"}</td>
-                            <td className="px-3 py-2">{row.last_modified_date ?? "—"}</td>
+                            <td className="px-3 py-2">{row.facilityagent ?? "—"}</td>
                           </tr>
                         ))}
                       </tbody>

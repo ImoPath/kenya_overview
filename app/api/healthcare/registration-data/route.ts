@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDhaToken } from "@/lib/dha-auth";
-
-const REGISTRATION_DATA_URL =
-  "https://taifacareanalytics.dha.go.ke/api/data-share/registration-data";
+import { pgPool } from "@/lib/postgres";
 
 const MAX_DATE_RANGE_DAYS = 92; // ~3 months
 
@@ -38,7 +35,19 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  let url: string;
+  let queryText = `
+    SELECT
+      name,
+      creation,
+      age_status,
+      updated_gender,
+      updated_employment_type,
+      updated_county,
+      last_modified_date,
+      synced_at
+    FROM taifacare_registration
+  `;
+  const queryValues: (string | Date)[] = [];
 
   if (hasLastModified) {
     const trimmed = lastModifiedParam!.trim();
@@ -49,7 +58,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    url = `${REGISTRATION_DATA_URL}?last_modified_date=${encodeURIComponent(d.toISOString())}`;
+    queryText += " WHERE last_modified_date >= $1";
+    queryValues.push(d.toISOString());
   } else {
     const start = parseDate(startDateParam!);
     const end = parseDate(endDateParam!);
@@ -80,32 +90,23 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    url = `${REGISTRATION_DATA_URL}?start_date=${yyyyMmDd(start)}&end_date=${yyyyMmDd(end)}`;
+    queryText += " WHERE creation::date BETWEEN $1 AND $2";
+    queryValues.push(yyyyMmDd(start), yyyyMmDd(end));
   }
+  queryText += " ORDER BY id DESC";
 
   try {
-    const token = await getDhaToken();
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+    const result = await pgPool.query(queryText, queryValues);
+    console.log("[healthcare/registration-data] rows:", result.rowCount ?? 0, {
+      mode: hasLastModified ? "last_modified" : "date_range",
+      start_date: startDateParam,
+      end_date: endDateParam,
+      last_modified_date: lastModifiedParam,
     });
-
-    if (!res.ok) {
-      const text = await res.text();
-      let detail = text || res.statusText;
-      try {
-        const parsed = JSON.parse(text) as { message?: string; error?: string };
-        detail = parsed.message ?? parsed.error ?? detail;
-      } catch {
-        /* use raw text as detail */
-      }
-      return NextResponse.json(
-        { error: "Registration data request failed", detail },
-        { status: 502 }
-      );
+    if ((result.rowCount ?? 0) > 0) {
+      console.log("[healthcare/registration-data] first_row:", result.rows[0]);
     }
-
-    const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ data: result.rows });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     const status = message.includes("must be set") ? 500 : 502;
