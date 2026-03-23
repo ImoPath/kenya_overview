@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -251,6 +251,33 @@ function CountyMetricsPanel({
   );
 }
 
+type ProjectRow = {
+  project_id: number;
+  name: string;
+  status: string | null;
+  percentage_complete: number | null;
+  latest_update: string | null;
+  allocated_kes: number | null;
+  disbursed_kes: number | null;
+  county: string | null;
+  expected_completion: string | null;
+};
+
+function StatusBadge({ status }: { status: string | null }) {
+  const s = (status ?? "").toLowerCase();
+  const cls =
+    s === "completed"
+      ? "bg-emerald-500/20 text-emerald-400"
+      : s === "ongoing"
+      ? "bg-cyan-500/20 text-cyan-400"
+      : "bg-slate-500/20 text-slate-400";
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${cls}`}>
+      {status ?? "Unknown"}
+    </span>
+  );
+}
+
 function MetricBlock({
   title,
   children,
@@ -276,6 +303,16 @@ function MetricBlock({
 export default function HousingPage() {
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [hoveredCounty, setHoveredCounty] = useState<string | null>(null);
+  const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("api/projects?focus=housing")
+      .then((r) => r.json())
+      .then((d: { data: ProjectRow[] }) => setProjects(d.data ?? []))
+      .catch(() => setProjects([]))
+      .finally(() => setProjectsLoading(false));
+  }, []);
 
   return (
     <div className="relative min-h-screen overflow-auto">
@@ -415,33 +452,49 @@ export default function HousingPage() {
           </MetricBlock>
         </div>
 
-        <MetricBlock title="Active Construction Sites (sample)" delay={0.3}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/20 text-slate-400">
-                  <th className="pb-3 pr-4 font-medium">Site</th>
-                  <th className="pb-3 pr-4 font-medium">County</th>
-                  <th className="pb-3 pr-4 font-medium">Units</th>
-                  <th className="pb-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="text-white">
-                {constructionSites.map((site, i) => (
-                  <tr key={i} className="border-b border-white/10">
-                    <td className="py-3 pr-4 font-medium">{site.name}</td>
-                    <td className="py-3 pr-4">{site.county}</td>
-                    <td className="py-3 pr-4">{site.units.toLocaleString()}</td>
-                    <td className="py-3">
-                      <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs text-emerald-400">
-                        {site.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <MetricBlock title="Housing Projects" delay={0.3}>
+          {projectsLoading && <p className="text-slate-400">Loading projects…</p>}
+          {!projectsLoading && projects.length === 0 && (
+            <p className="text-slate-400">No projects found.</p>
+          )}
+          {!projectsLoading && projects.length > 0 && (
+            <div className="space-y-3">
+              {projects.map((p) => (
+                <div key={p.project_id} className="rounded-lg bg-white/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium text-white text-sm leading-snug">{p.name}</p>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  {p.percentage_complete != null && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                        <span>Progress</span>
+                        <span>{p.percentage_complete}%</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-white/10">
+                        <div
+                          className={`h-full rounded-full ${
+                            (p.status ?? "").toLowerCase() === "completed"
+                              ? "bg-emerald-400"
+                              : "bg-cyan-400"
+                          }`}
+                          style={{ width: `${Math.min(100, Number(p.percentage_complete))}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {p.allocated_kes != null && Number(p.allocated_kes) > 0 && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Budget: KES {(Number(p.allocated_kes) / 1e9).toFixed(2)}B allocated
+                      {p.disbursed_kes != null && Number(p.disbursed_kes) > 0
+                        ? ` · ${(Number(p.disbursed_kes) / 1e9).toFixed(2)}B disbursed`
+                        : ""}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </MetricBlock>
 
         <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-slate-500 space-y-1">

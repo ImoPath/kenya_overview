@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -28,6 +29,32 @@ const sectorSplit = [
   { sector: "Creative & informal", share: 10 },
 ];
 
+type ProjectRow = {
+  project_id: number;
+  name: string;
+  status: string | null;
+  percentage_complete: number | null;
+  latest_update: string | null;
+  allocated_kes: number | null;
+  disbursed_kes: number | null;
+  county: string | null;
+};
+
+function StatusBadge({ status }: { status: string | null }) {
+  const s = (status ?? "").toLowerCase();
+  const cls =
+    s === "completed"
+      ? "bg-emerald-500/20 text-emerald-400"
+      : s === "ongoing"
+      ? "bg-cyan-500/20 text-cyan-400"
+      : "bg-slate-500/20 text-slate-400";
+  return (
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${cls}`}>
+      {status ?? "Unknown"}
+    </span>
+  );
+}
+
 function MetricBlock({
   title,
   children,
@@ -51,6 +78,17 @@ function MetricBlock({
 }
 
 export default function MsmeEconomyPage() {
+  const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("api/projects?focus=msme")
+      .then((r) => r.json())
+      .then((d: { data: ProjectRow[] }) => setProjects(d.data ?? []))
+      .catch(() => setProjects([]))
+      .finally(() => setProjectsLoading(false));
+  }, []);
+
   return (
     <div className="relative min-h-screen overflow-auto">
       <div className="fixed inset-0 -z-10">
@@ -162,8 +200,48 @@ export default function MsmeEconomyPage() {
           </MetricBlock>
         </div>
 
+        <MetricBlock title="MSME & Economy Projects" delay={0.2}>
+          {projectsLoading && <p className="text-slate-400">Loading projects…</p>}
+          {!projectsLoading && projects.length === 0 && (
+            <p className="text-slate-400">No projects found.</p>
+          )}
+          {!projectsLoading && projects.length > 0 && (
+            <div className="space-y-3">
+              {projects.map((p) => (
+                <div key={p.project_id} className="rounded-lg bg-white/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-medium text-white text-sm leading-snug">{p.name}</p>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  {p.percentage_complete != null && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                        <span>Progress</span>
+                        <span>{p.percentage_complete}%</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-white/10">
+                        <div
+                          className={`h-full rounded-full ${
+                            (p.status ?? "").toLowerCase() === "completed"
+                              ? "bg-emerald-400"
+                              : "bg-cyan-400"
+                          }`}
+                          style={{ width: `${Math.min(100, Number(p.percentage_complete))}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {p.latest_update && (
+                    <p className="mt-2 text-xs text-slate-400 line-clamp-2">{p.latest_update}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </MetricBlock>
+
         <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-slate-500">
-          MSME Economy Dashboard · Dummy visuals · Source: indicative
+          MSME Economy Dashboard · Projects live · Other metrics indicative
         </footer>
       </div>
     </div>

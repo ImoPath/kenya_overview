@@ -11,79 +11,56 @@ import {
   ZoomableGroup,
 } from "react-simple-maps";
 
-/** Map county row: name + status for coloring (derived from population data) */
-type CountyMapRow = { name: string; status: string };
-
 const KENYA_GEO_URL = "geojson/gadm41_KEN_1.json";
 const MAP_CENTER: [number, number] = [37.9, -0.2];
 const MIN_ZOOM = 0.8;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.35;
 
-/** Kenya population data from DHA API (kenya-population-data) */
-export type KenyaPopulationRow = {
-  updated_county: string;
-  updated_gender: string;
-  age_status: string;
-  population_count: number;
-  year: string;
-};
+type CountyRow = { county: string; count: number };
 
-/** Registration data from DHA API (registration-data) */
-export type RegistrationRow = {
-  name: string;
-  creation: string;
-  age_status: string;
-  updated_gender: string;
-  updated_employment_type: string;
-  updated_county: string;
-  last_modified_date: string;
-};
-
-/** SHA uptake data from DHA API (sha-uptake-data) */
-export type ShaUptakeRow = {
-  frcode: string;
-  transacting_facility: string;
-  licensed_status: string;
-  active_status: string;
-  facilityname: string;
-  address_county: string;
-  facilityagent: string;
-  kephlevel: string;
-};
-
-/** Fallback when API is non-200 or returns no data — sample Kenya population by county/gender/age */
-const FALLBACK_POPULATION_DATA: KenyaPopulationRow[] = (() => {
-  const counties = [
-    "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Kiambu", "Kakamega",
-    "Kisii", "Meru", "Uasin Gishu", "Turkana", "Mandera", "Machakos",
-  ];
-  const genders = ["Male", "Female"];
-  const ageGroups = ["0-17", "18-59", "60+"];
-  const year = "2019";
-  const rows: KenyaPopulationRow[] = [];
-  const basePops: Record<string, number> = {
-    Nairobi: 4_400_000, Mombasa: 1_200_000, Kisumu: 1_150_000, Nakuru: 2_160_000,
-    Kiambu: 2_420_000, Kakamega: 1_870_000, Kisii: 1_270_000, Meru: 1_550_000,
-    "Uasin Gishu": 1_130_000, Turkana: 927_000, Mandera: 868_000, Machakos: 1_420_000,
+type CountyDetail = {
+  county: string;
+  registrations: {
+    total: number;
+    by_gender: { male: number; female: number };
+    by_age: { below_18: number; above_18: number };
+    by_employment: { employed: number; self_employed: number; unemployed: number; sponsored: number };
   };
-  counties.forEach((county) => {
-    const total = basePops[county] ?? 1_000_000;
-    genders.forEach((gender, gi) => {
-      ageGroups.forEach((age, ai) => {
-        const share = (1 / 6) * (0.9 + (gi * 0.05) + (ai * 0.05));
-        rows.push({
-          updated_county: county,
-          updated_gender: gender,
-          age_status: age,
-          population_count: Math.round(total * share),
-          year,
-        });
-      });
-    });
-  });
-  return rows;
-})();
+  facilities: {
+    total: number;
+    active: number;
+    inactive: number;
+    licensed: number;
+    unlicensed: number;
+    by_level: Array<{ level: string; count: number }>;
+  };
+};
+
+type HealthcareSummary = {
+  registrations: {
+    total: number;
+    by_gender: { male: number; female: number };
+    by_age: { below_18: number; above_18: number };
+    by_employment: {
+      employed: number;
+      self_employed: number;
+      unemployed: number;
+      sponsored: number;
+    };
+    by_county: CountyRow[];
+  };
+  facilities: {
+    total: number;
+    active: number;
+    inactive: number;
+    licensed: number;
+    unlicensed: number;
+    by_level: Array<{ level: string; count: number }>;
+    by_county: CountyRow[];
+  };
+  last_synced: Array<{ dataset_name: string; last_full_sync_at: string }>;
+};
 
 const COUNTY_STYLES: Record<string, { fill: string; stroke: string; fillHover: string }> = {
   "on-target": { fill: "rgba(16, 185, 129, 0.5)", stroke: "rgba(52, 211, 153, 0.7)", fillHover: "rgba(16, 185, 129, 0.75)" },
@@ -96,37 +73,23 @@ function getCountyStyle(status: string | undefined) {
   return COUNTY_STYLES[status ?? "default"] ?? COUNTY_STYLES.default;
 }
 
-type CountyMapProps = {
-  countyData: CountyMapRow[];
+function CountyMap({
+  countyStatuses,
+  onCountyHover,
+  onCountyClick,
+}: {
+  countyStatuses: Record<string, string>;
   onCountyHover: (name: string | null) => void;
   onCountyClick: (name: string) => void;
-};
-
-function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps) {
+}) {
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState<[number, number]>(MAP_CENTER);
-
-  const countyByName = useMemo(() => {
-    const map: Record<string, CountyMapRow> = {};
-    countyData.forEach((c) => { map[c.name] = c; });
-    return map;
-  }, [countyData]);
-
-  const handleZoomIn = () => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP));
-  const handleZoomOut = () => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP));
-  const handleReset = () => {
-    setZoom(1);
-    setCenter(MAP_CENTER);
-  };
 
   return (
     <div className="relative w-full h-full min-h-[320px] lg:min-h-[400px]">
       <ComposableMap
         projection="geoMercator"
-        projectionConfig={{
-          center: MAP_CENTER,
-          scale: 2800,
-        }}
+        projectionConfig={{ center: MAP_CENTER, scale: 2800 }}
         className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
       >
@@ -146,9 +109,7 @@ function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps)
             {({ geographies }) =>
               geographies.map((geo) => {
                 const name = geo.properties?.NAME_1 ?? "";
-                const data = countyByName[name];
-                const status = data?.status;
-                const colors = getCountyStyle(status);
+                const colors = getCountyStyle(countyStatuses[name]);
                 return (
                   <Geography
                     key={geo.rsmKey}
@@ -170,10 +131,11 @@ function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps)
           </Geographies>
         </ZoomableGroup>
       </ComposableMap>
+
       <div className="absolute top-3 right-3 flex flex-col gap-1 z-10" role="group" aria-label="Map zoom controls">
         <button
           type="button"
-          onClick={handleZoomIn}
+          onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP))}
           disabled={zoom >= MAX_ZOOM}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/80 backdrop-blur text-white shadow-lg hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           aria-label="Zoom in"
@@ -182,7 +144,7 @@ function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps)
         </button>
         <button
           type="button"
-          onClick={handleZoomOut}
+          onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - ZOOM_STEP))}
           disabled={zoom <= MIN_ZOOM}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/80 backdrop-blur text-white shadow-lg hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           aria-label="Zoom out"
@@ -191,7 +153,7 @@ function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps)
         </button>
         <button
           type="button"
-          onClick={handleReset}
+          onClick={() => { setZoom(1); setCenter(MAP_CENTER); }}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/80 backdrop-blur text-white shadow-lg hover:bg-white/10 transition-colors"
           aria-label="Reset zoom and position"
           title="Reset view"
@@ -203,86 +165,170 @@ function CountyMap({ countyData, onCountyHover, onCountyClick }: CountyMapProps)
   );
 }
 
-function CountyMetricsPanel({
+function CountyPanel({
   countyName,
-  populationData,
+  mapTab,
 }: {
   countyName: string | null;
-  populationData: KenyaPopulationRow[] | null;
+  mapTab: "registrations" | "facilities";
 }) {
-  const countyRows = useMemo(() => {
-    if (!countyName || !populationData?.length) return null;
-    return populationData.filter((r) => (r.updated_county || "").trim() === countyName.trim());
-  }, [countyName, populationData]);
+  const [detail, setDetail] = useState<CountyDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  const stats = useMemo(() => {
-    if (!countyRows?.length) return null;
-    const total = countyRows.reduce((s, r) => s + (r.population_count ?? 0), 0);
-    const byGender = countyRows.reduce<Record<string, number>>((acc, r) => {
-      const g = r.updated_gender || "Unknown";
-      acc[g] = (acc[g] ?? 0) + (r.population_count ?? 0);
-      return acc;
-    }, {});
-    const byAge = countyRows.reduce<Record<string, number>>((acc, r) => {
-      const a = r.age_status || "Unknown";
-      acc[a] = (acc[a] ?? 0) + (r.population_count ?? 0);
-      return acc;
-    }, {});
-    return { total, byGender, byAge };
-  }, [countyRows]);
+  useEffect(() => {
+    if (!countyName) { setDetail(null); return; }
+    setDetailLoading(true);
+    setDetail(null);
+    fetch(`api/healthcare/county?name=${encodeURIComponent(countyName)}`)
+      .then((r) => r.json())
+      .then((d: CountyDetail) => setDetail(d))
+      .catch(() => setDetail(null))
+      .finally(() => setDetailLoading(false));
+  }, [countyName]);
 
   return (
     <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md p-5 h-full min-h-[320px] lg:min-h-[400px] flex flex-col">
       <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
-        County population
+        County breakdown
       </h2>
-      {countyName && stats ? (
-        <div className="space-y-4 flex-1">
-          <p className="text-xl font-bold text-white">{countyName}</p>
-          <dl className="rounded-lg bg-white/5 p-3">
-            <dt className="text-xs text-slate-500">Total population</dt>
-            <dd className="text-lg font-bold text-white mt-1">{stats.total.toLocaleString()}</dd>
-          </dl>
-          {Object.keys(stats.byGender).length > 0 && (
-            <div>
-              <p className="text-xs text-slate-500 mb-2">By gender</p>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(stats.byGender).map(([g, n]) => (
-                  <span key={g} className="rounded-lg bg-white/5 px-3 py-2 text-sm text-white">
-                    {g}: {n.toLocaleString()}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {Object.keys(stats.byAge).length > 0 && (
-            <div>
-              <p className="text-xs text-slate-500 mb-2">By age group</p>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(stats.byAge).map(([a, n]) => (
-                  <span key={a} className="rounded-lg bg-white/5 px-3 py-2 text-sm text-white">
-                    {a}: {n.toLocaleString()}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : countyName ? (
-        <div className="flex-1 flex flex-col justify-center text-center">
-          <p className="text-xl font-bold text-white">{countyName}</p>
-          <p className="text-sm text-slate-400 mt-2">No population data for this county.</p>
-        </div>
-      ) : (
+      {!countyName && (
         <div className="flex-1 flex flex-col justify-center text-center text-slate-400">
-          <p className="text-sm">Click a county on the map to see population by gender and age.</p>
-          <p className="text-xs mt-2 text-slate-500">
-            Green = higher population · Yellow = medium · Red = lower population
-          </p>
+          <p className="text-sm">Click a county on the map to see SHA data.</p>
         </div>
+      )}
+      {countyName && detailLoading && (
+        <p className="text-slate-400 text-sm">Loading {countyName}…</p>
+      )}
+      {countyName && !detailLoading && detail && (
+        <div className="space-y-4 flex-1 overflow-y-auto">
+          <p className="text-xl font-bold text-white">{countyName}</p>
+
+          {mapTab === "registrations" && (
+            <>
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                <p className="text-xs text-slate-400">Total registrations</p>
+                <p className="text-2xl font-bold text-white">{detail.registrations.total.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-2">By gender</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">Male</p>
+                    <p className="font-semibold text-white">{detail.registrations.by_gender.male.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">Female</p>
+                    <p className="font-semibold text-white">{detail.registrations.by_gender.female.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-2">By age</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">Below 18</p>
+                    <p className="font-semibold text-white">{detail.registrations.by_age.below_18.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">18 and above</p>
+                    <p className="font-semibold text-white">{detail.registrations.by_age.above_18.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-2">By employment</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      ["Employed", detail.registrations.by_employment.employed],
+                      ["Self employed", detail.registrations.by_employment.self_employed],
+                      ["Unemployed", detail.registrations.by_employment.unemployed],
+                      ["Sponsored", detail.registrations.by_employment.sponsored],
+                    ] as [string, number][]
+                  ).map(([label, val]) => (
+                    <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
+                      <p className="text-xs text-slate-500">{label}</p>
+                      <p className="font-semibold text-white">{val.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {mapTab === "facilities" && (
+            <>
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                <p className="text-xs text-slate-400">Total facilities</p>
+                <p className="text-2xl font-bold text-white">{detail.facilities.total.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-2">Active / inactive</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">Active</p>
+                    <p className="font-semibold text-white">{detail.facilities.active.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">Inactive</p>
+                    <p className="font-semibold text-white">{detail.facilities.inactive.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-2">Licensed / non-licensed</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">Licensed</p>
+                    <p className="font-semibold text-white">{detail.facilities.licensed.toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <p className="text-xs text-slate-500">Non-licensed</p>
+                    <p className="font-semibold text-white">{detail.facilities.unlicensed.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+              {detail.facilities.by_level.length > 0 && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">By KEPH level</p>
+                  <div className="flex flex-wrap gap-2">
+                    {detail.facilities.by_level.map(({ level, count }) => (
+                      <div key={level} className="rounded-lg bg-white/5 px-3 py-2">
+                        <p className="text-xs text-slate-500">{level}</p>
+                        <p className="font-semibold text-white">{count.toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+      {countyName && !detailLoading && !detail && (
+        <p className="text-sm text-slate-400">No SHA data recorded for this county yet.</p>
       )}
     </div>
   );
+}
+
+function buildMapData(data: CountyRow[]) {
+  if (!data.length) return { statuses: {} as Record<string, string>, ranges: null };
+  const sorted = [...data].sort((a, b) => b.count - a.count);
+  const n = sorted.length;
+  const tercile = Math.max(1, Math.floor(n / 3));
+  const statuses: Record<string, string> = {};
+  sorted.forEach(({ county }, i) => {
+    statuses[county] = i < tercile ? "on-target" : i < 2 * tercile ? "warning" : "intervention";
+  });
+  return {
+    statuses,
+    ranges: {
+      high:   { min: sorted[tercile - 1].count,                       max: sorted[0].count },
+      medium: { min: sorted[Math.min(2 * tercile - 1, n - 1)].count, max: sorted[tercile].count },
+      low:    { min: sorted[n - 1].count,                             max: sorted[Math.min(2 * tercile, n - 1)].count },
+    },
+  };
 }
 
 function MetricBlock({
@@ -307,205 +353,120 @@ function MetricBlock({
   );
 }
 
-function normalizePopulationData(
-  raw: unknown
-): KenyaPopulationRow[] {
-  if (Array.isArray(raw)) return raw as KenyaPopulationRow[];
-  if (raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)) {
-    return (raw as { data: KenyaPopulationRow[] }).data;
-  }
-  return [];
-}
-
 export default function HealthcarePage() {
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [hoveredCounty, setHoveredCounty] = useState<string | null>(null);
-
-  const [populationData, setPopulationData] = useState<KenyaPopulationRow[] | null>(null);
-  const [populationLoading, setPopulationLoading] = useState(true);
-  const [populationError, setPopulationError] = useState<string | null>(null);
-
-  const [registrationData, setRegistrationData] = useState<RegistrationRow[] | null>(null);
-  const [registrationLoading, setRegistrationLoading] = useState(false);
-  const [registrationError, setRegistrationError] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<"dateRange" | "lastModified">("dateRange");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [lastModifiedDate, setLastModifiedDate] = useState("");
-
-  const [shaUptakeData, setShaUptakeData] = useState<ShaUptakeRow[] | null>(null);
-  const [shaUptakeLoading, setShaUptakeLoading] = useState(false);
-  const [shaUptakeError, setShaUptakeError] = useState<string | null>(null);
-  function apiErrorFromResponse(b: { error?: string; detail?: string }, fallback: string): string {
-    if (b.detail) return b.error ? `${b.error}: ${b.detail}` : b.detail;
-    return b.error ?? fallback;
-  }
-
-  function fetchRegistration() {
-    const params = new URLSearchParams();
-    if (filterMode === "dateRange") {
-      if (!startDate || !endDate) {
-        setRegistrationError("Please set both start and end date.");
-        return;
-      }
-      if (new Date(endDate) < new Date(startDate)) {
-        setRegistrationError("End date cannot be before start date.");
-        return;
-      }
-      const days = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000);
-      if (days > 92) {
-        setRegistrationError("Date range cannot exceed 3 months (92 days).");
-        return;
-      }
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (new Date(startDate) > today || new Date(endDate) > today) {
-        setRegistrationError("Start and end dates cannot be in the future. Use a date range up to today.");
-        return;
-      }
-      params.set("start_date", startDate);
-      params.set("end_date", endDate);
-    } else {
-      const trimmed = lastModifiedDate.trim();
-      if (!trimmed) {
-        setRegistrationError("Please enter a last modified date (ISO 8601 UTC).");
-        return;
-      }
-      const d = new Date(trimmed);
-      if (isNaN(d.getTime())) {
-        setRegistrationError("Invalid date/time. Use ISO 8601 (e.g. 2026-03-12T10:30:32Z).");
-        return;
-      }
-      params.set("last_modified_date", d.toISOString());
-    }
-    setRegistrationError(null);
-    setRegistrationLoading(true);
-    fetch(`api/healthcare/registration-data?${params.toString()}`)
-      .then((res) => {
-        if (!res.ok) {
-          return res.json().then((b: { error?: string; detail?: string }) => {
-            throw new Error(apiErrorFromResponse(b, res.statusText));
-          });
-        }
-        return res.json();
-      })
-      .then((raw: unknown) => {
-        const list = Array.isArray(raw) ? raw : (raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)) ? (raw as { data: RegistrationRow[] }).data : [];
-        setRegistrationData(list);
-      })
-      .catch((err: unknown) => {
-        setRegistrationError(err instanceof Error ? err.message : "Failed to load");
-      })
-      .finally(() => {
-        setRegistrationLoading(false);
-      });
-  }
-
-  function fetchShaUptake() {
-    setShaUptakeError(null);
-    setShaUptakeLoading(true);
-    fetch("api/healthcare/sha-uptake-data")
-      .then((res) => {
-        if (!res.ok) {
-          return res.json().then((b: { error?: string; detail?: string }) => {
-            throw new Error(apiErrorFromResponse(b, res.statusText));
-          });
-        }
-        return res.json();
-      })
-      .then((raw: unknown) => {
-        const list = Array.isArray(raw)
-          ? raw
-          : raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)
-            ? (raw as { data: ShaUptakeRow[] }).data
-            : [];
-        setShaUptakeData(list);
-      })
-      .catch((err: unknown) => {
-        setShaUptakeError(err instanceof Error ? err.message : "Failed to load");
-      })
-      .finally(() => {
-        setShaUptakeLoading(false);
-      });
-  }
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const [summary, setSummary] = useState<HealthcareSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("api/healthcare/population-data")
+    fetch("api/healthcare/summary")
       .then((res) => {
-        if (!res.ok) return res.json().then((b: { error?: string; detail?: string }) => { throw new Error(apiErrorFromResponse(b, res.statusText)); });
+        if (!res.ok) {
+          return res.json().then((b: { error?: string; detail?: string }) => {
+            throw new Error(b.detail ?? b.error ?? res.statusText);
+          });
+        }
         return res.json();
       })
-      .then((raw) => {
-        if (cancelled) return;
-        setPopulationData(normalizePopulationData(raw));
+      .then((data: HealthcareSummary) => {
+        if (!cancelled) setSummary(data);
       })
-      .catch((err) => {
-        if (!cancelled) setPopulationError(err instanceof Error ? err.message : "Failed to load");
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
       })
       .finally(() => {
-        if (!cancelled) setPopulationLoading(false);
+        if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
   }, []);
 
-  const effectivePopulationData = useMemo(
-    () => (populationData?.length ? populationData : FALLBACK_POPULATION_DATA),
-    [populationData]
+  const [mapTab, setMapTab] = useState<"registrations" | "facilities">("registrations");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const regMapData = useMemo(
+    () => buildMapData(summary?.registrations.by_county ?? []),
+    [summary]
   );
-  const isUsingFallback = !populationData?.length;
+  const facMapData = useMemo(
+    () => buildMapData(summary?.facilities.by_county ?? []),
+    [summary]
+  );
 
-  const countyMapData = useMemo((): CountyMapRow[] => {
-    if (!effectivePopulationData.length) return [];
-    const byCounty = effectivePopulationData.reduce<Record<string, number>>((acc, r) => {
-      const c = (r.updated_county || "").trim();
-      if (!c) return acc;
-      acc[c] = (acc[c] ?? 0) + (r.population_count ?? 0);
-      return acc;
-    }, {});
-    const entries = Object.entries(byCounty)
-      .map(([name, pop]) => ({ name, pop }))
-      .sort((a, b) => b.pop - a.pop);
-    if (entries.length === 0) return [];
-    const terciles = Math.max(1, Math.floor(entries.length / 3));
-    return entries.map(({ name }, i) => {
-      let status: string;
-      if (i < terciles) status = "on-target";
-      else if (i < 2 * terciles) status = "warning";
-      else status = "intervention";
-      return { name, status };
-    });
-  }, [effectivePopulationData]);
+  const { statuses: countyStatuses, ranges: legendRanges } =
+    mapTab === "registrations" ? regMapData : facMapData;
 
-  const topMetrics = useMemo(() => {
-    if (!effectivePopulationData.length) return null;
-    const total = effectivePopulationData.reduce((s, r) => s + (r.population_count ?? 0), 0);
-    const counties = new Set(effectivePopulationData.map((r) => (r.updated_county || "").trim()).filter(Boolean)).size;
-    const years = [...new Set(effectivePopulationData.map((r) => r.year).filter(Boolean))].sort().join(", ") || "—";
-    const byGender = effectivePopulationData.reduce<Record<string, number>>((acc, r) => {
-      const g = r.updated_gender || "Unknown";
-      acc[g] = (acc[g] ?? 0) + (r.population_count ?? 0);
-      return acc;
-    }, {});
-    const female = byGender["Female"] ?? 0;
-    const femalePct = total > 0 ? ((female / total) * 100).toFixed(1) : "—";
+  const allCounties = useMemo(() => {
+    if (!summary) return [];
+    const set = new Set<string>();
+    summary.registrations.by_county.forEach((r) => set.add(r.county));
+    summary.facilities.by_county.forEach((r) => set.add(r.county));
+    return [...set].sort();
+  }, [summary]);
+
+  const filteredCounties = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return allCounties;
+    return allCounties.filter((c) => c.toLowerCase().includes(q));
+  }, [allCounties, searchQuery]);
+
+  const topCards = useMemo(() => {
+    if (!summary) return null;
+    const syncRow = summary.last_synced.find((s) => s.dataset_name === "registration");
+    const syncDate = syncRow
+      ? new Date(syncRow.last_full_sync_at).toLocaleDateString("en-KE", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+    const licensedPct =
+      summary.facilities.total > 0
+        ? ((summary.facilities.licensed / summary.facilities.total) * 100).toFixed(1) + "%"
+        : "—";
     return [
-      { label: "Total population", value: total.toLocaleString(), desc: "Census dataset total", status: "on-target" as const },
-      { label: "Counties", value: String(counties), desc: "Counties in dataset", status: "on-target" as const },
-      { label: "Census year(s)", value: years, desc: "Reference period", status: "on-target" as const },
-      { label: "Female share", value: `${femalePct}%`, desc: "Of total population", status: "on-target" as const },
+      {
+        label: "SHA Members Registered",
+        value: summary.registrations.total.toLocaleString(),
+        desc: "Total SHA enrollments",
+      },
+      {
+        label: "Active SHA Facilities",
+        value: summary.facilities.active.toLocaleString(),
+        desc: `of ${summary.facilities.total.toLocaleString()} total`,
+      },
+      {
+        label: "Licensed Facilities",
+        value: licensedPct,
+        desc: `${summary.facilities.licensed.toLocaleString()} licensed`,
+      },
+      {
+        label: "Last Data Sync",
+        value: syncDate,
+        desc: "From SHA systems",
+      },
     ];
-  }, [effectivePopulationData]);
+  }, [summary]);
 
   return (
     <div className="relative min-h-screen overflow-auto">
       <div className="fixed inset-0 -z-10">
-        <Image src="https://res.cloudinary.com/dirib3jmw/image/upload/v1773815336/skyline_nkip6b.jpg" alt="Nairobi skyline" fill className="object-cover" priority sizes="100vw" />
+        <Image
+          src="https://res.cloudinary.com/dirib3jmw/image/upload/v1773815336/skyline_nkip6b.jpg"
+          alt="Nairobi skyline"
+          fill
+          className="object-cover"
+          priority
+          sizes="100vw"
+        />
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-black/90" aria-hidden />
       </div>
 
       <div className="relative z-0 mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Back link */}
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -520,16 +481,10 @@ export default function HealthcarePage() {
           </Link>
         </motion.div>
 
-        {/* Hero title */}
         <motion.header
           initial={{ scale: 0.72, opacity: 0, y: 30 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={{
-            type: "spring",
-            stiffness: 85,
-            damping: 18,
-            mass: 1,
-          }}
+          transition={{ type: "spring", stiffness: 85, damping: 18, mass: 1 }}
           className="mb-6 rounded-2xl border border-white/25 bg-black/60 backdrop-blur-xl px-6 py-6 shadow-2xl"
         >
           <div className="flex items-center gap-4">
@@ -556,46 +511,25 @@ export default function HealthcarePage() {
                 transition={{ delay: 0.35, duration: 0.35 }}
                 className="mt-1 text-slate-400"
               >
-                Get a 30-second understanding of the health system and drill into problems immediately.
+                SHA enrollment, facility activation, and coverage across Kenya.
               </motion.p>
             </div>
           </div>
         </motion.header>
 
-        {/* County map + county population panel — from population data */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
-        >
-          <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md overflow-hidden shadow-xl flex items-center justify-center relative">
-            <CountyMap
-              countyData={countyMapData}
-              onCountyHover={setHoveredCounty}
-              onCountyClick={setSelectedCounty}
-            />
-            {hoveredCounty && (
-              <div
-                className="absolute bottom-3 left-3 rounded-lg border border-white/20 bg-black/80 backdrop-blur px-3 py-2 text-sm font-medium text-white shadow-xl pointer-events-none z-10"
-                role="status"
-                aria-live="polite"
-              >
-                {hoveredCounty}
-              </div>
-            )}
-          </div>
-          <CountyMetricsPanel countyName={selectedCounty} populationData={effectivePopulationData} />
-        </motion.section>
-
-        {/* Top 4 metrics — from population data (fallback used when API fails or returns empty) */}
+        {/* Top 4 KPI cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {populationLoading && (
+          {loading && (
             <div className="col-span-2 lg:col-span-4 rounded-xl border border-white/20 bg-white/5 p-4 text-slate-400">
-              Loading population metrics…
+              Loading SHA data…
             </div>
           )}
-          {!populationLoading && topMetrics?.map((m, i) => (
+          {!loading && error && (
+            <div className="col-span-2 lg:col-span-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400">
+              Error: {error}
+            </div>
+          )}
+          {!loading && topCards?.map((m, i) => (
             <motion.div
               key={m.label}
               initial={{ opacity: 0, y: 16 }}
@@ -608,278 +542,212 @@ export default function HealthcarePage() {
               <p className="text-xs text-slate-500">{m.desc}</p>
             </motion.div>
           ))}
-          {!populationLoading && isUsingFallback && (
-            <p className="col-span-2 lg:col-span-4 text-xs text-amber-400/90">
-              Showing sample data — API unavailable or returned no data.
-            </p>
-          )}
         </div>
 
-        {/* Kenya Population Data from Postgres (fallback when unavailable or empty) */}
-        <MetricBlock title="Kenya Population Data (Postgres)" delay={0.12}>
-          {populationLoading && (
-            <p className="text-slate-400">Loading population data…</p>
-          )}
-          {!populationLoading && populationError && (
-            <p className="text-amber-400 mb-3">Error: {populationError}</p>
-          )}
-          {!populationLoading && (
-            <div className="space-y-4">
-              {isUsingFallback && (
-                <p className="text-sm text-amber-400/90">
-                  Showing sample data — API unavailable or returned no data.
-                </p>
-              )}
-              {(() => {
-                const data = effectivePopulationData;
-                if (!data.length) return <p className="text-slate-400">No population data.</p>;
-                const total = data.reduce((s, r) => s + (r.population_count ?? 0), 0);
-                const years = [...new Set(data.map((r) => r.year))].filter(Boolean).sort();
-                const byGender = data.reduce<Record<string, number>>((acc, r) => {
-                  const g = r.updated_gender || "Unknown";
-                  acc[g] = (acc[g] ?? 0) + (r.population_count ?? 0);
-                  return acc;
-                }, {});
-                return (
-                  <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      <div className="rounded-lg bg-white/5 p-3">
-                        <p className="text-xs text-slate-500">Total population (dataset)</p>
-                        <p className="mt-1 text-xl font-bold text-white">
-                          {total.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="rounded-lg bg-white/5 p-3">
-                        <p className="text-xs text-slate-500">Census year(s)</p>
-                        <p className="mt-1 font-semibold text-white">
-                          {years.length ? years.join(", ") : "—"}
-                        </p>
-                      </div>
-                      <div className="rounded-lg bg-white/5 p-3">
-                        <p className="text-xs text-slate-500">Records</p>
-                        <p className="mt-1 font-semibold text-white">
-                          {data.length.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                    {Object.keys(byGender).length > 0 && (
-                      <div>
-                        <p className="text-xs text-slate-500 mb-2">By gender</p>
-                        <div className="flex flex-wrap gap-3">
-                          {Object.entries(byGender).map(([gender, count]) => (
-                            <span
-                              key={gender}
-                              className="rounded-lg bg-white/5 px-3 py-2 text-sm text-white"
-                            >
-                              {gender}: {count.toLocaleString()}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-        </MetricBlock>
-
-        {/* Registration Data (Postgres) with filters */}
-        <MetricBlock title="Registration Data (Postgres)" delay={0.14}>
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-4 items-end">
-              <div className="flex flex-wrap gap-3 items-center">
-                <span className="text-sm text-slate-400">Filter by:</span>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="regFilter"
-                    checked={filterMode === "dateRange"}
-                    onChange={() => { setFilterMode("dateRange"); setRegistrationError(null); }}
-                    className="rounded border-slate-500 bg-white/5 text-emerald-500 focus:ring-emerald-500"
-                  />
-                  <span className="text-white">Date range</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="regFilter"
-                    checked={filterMode === "lastModified"}
-                    onChange={() => { setFilterMode("lastModified"); setRegistrationError(null); }}
-                    className="rounded border-slate-500 bg-white/5 text-emerald-500 focus:ring-emerald-500"
-                  />
-                  <span className="text-white">Last modified (incremental)</span>
-                </label>
-              </div>
-            </div>
-            {filterMode === "dateRange" && (
-              <div className="flex flex-wrap gap-4 items-end">
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">Start date (YYYY-MM-DD)</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
+        {/* SHA national breakdown — shown first */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          <MetricBlock title="SHA Registrations" delay={0.12}>
+            {loading && <p className="text-slate-400">Loading…</p>}
+            {!loading && summary && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">Male</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.registrations.by_gender.male.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">Female</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.registrations.by_gender.female.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">Below 18</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.registrations.by_age.below_18.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">18 and above</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.registrations.by_age.above_18.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">End date (YYYY-MM-DD)</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-                <p className="text-xs text-slate-500 self-center">Max 3 months span</p>
-              </div>
-            )}
-            {filterMode === "lastModified" && (
-              <div className="flex flex-wrap gap-4 items-end">
-                <div className="min-w-[220px]">
-                  <label className="block text-xs text-slate-500 mb-1">Last modified (ISO 8601 UTC)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 2026-03-12T10:30:32Z"
-                    value={lastModifiedDate}
-                    onChange={(e) => setLastModifiedDate(e.target.value)}
-                    className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
+                  <p className="text-xs text-slate-500 mb-2">By employment type</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        ["Employed", summary.registrations.by_employment.employed],
+                        ["Self employed", summary.registrations.by_employment.self_employed],
+                        ["Unemployed", summary.registrations.by_employment.unemployed],
+                        ["Sponsored", summary.registrations.by_employment.sponsored],
+                      ] as [string, number][]
+                    ).map(([label, val]) => (
+                      <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
+                        <p className="text-xs text-slate-500">{label}</p>
+                        <p className="font-semibold text-white">{val.toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={fetchRegistration}
-                disabled={registrationLoading}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {registrationLoading ? "Loading…" : "Fetch registration data"}
-              </button>
-            </div>
-            {registrationError && (
-              <p className="text-amber-400 text-sm">{registrationError}</p>
-            )}
-            {!registrationLoading && !registrationError && registrationData !== null && (
-              <div className="mt-4">
-                <p className="text-xs text-slate-500 mb-2">
-                  {registrationData.length} record{registrationData.length !== 1 ? "s" : ""} returned
-                </p>
-                {registrationData.length > 0 ? (
-                  <div className="overflow-x-auto rounded-lg border border-white/10 max-h-[400px] overflow-y-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="sticky top-0 bg-black/80 text-slate-400 border-b border-white/10">
-                        <tr>
-                          <th className="px-3 py-2 font-medium">Name</th>
-                          <th className="px-3 py-2 font-medium">County</th>
-                          <th className="px-3 py-2 font-medium">Gender</th>
-                          <th className="px-3 py-2 font-medium">Age</th>
-                          <th className="px-3 py-2 font-medium">Employment</th>
-                          <th className="px-3 py-2 font-medium">Creation</th>
-                          <th className="px-3 py-2 font-medium">Last modified</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-white">
-                        {registrationData.map((row, i) => (
-                          <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                            <td className="px-3 py-2">{row.name ?? "—"}</td>
-                            <td className="px-3 py-2">{row.updated_county ?? "—"}</td>
-                            <td className="px-3 py-2">{row.updated_gender ?? "—"}</td>
-                            <td className="px-3 py-2">{row.age_status ?? "—"}</td>
-                            <td className="px-3 py-2">{row.updated_employment_type ?? "—"}</td>
-                            <td className="px-3 py-2">{row.creation ?? "—"}</td>
-                            <td className="px-3 py-2">{row.last_modified_date ?? "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+          </MetricBlock>
+
+          <MetricBlock title="SHA Facilities" delay={0.14}>
+            {loading && <p className="text-slate-400">Loading…</p>}
+            {!loading && summary && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">Active</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.facilities.active.toLocaleString()}
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-slate-400">No records for the selected filters.</p>
-                )}
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">Inactive</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.facilities.inactive.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">Licensed</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.facilities.licensed.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-white/5 p-3">
+                    <p className="text-xs text-slate-500">Non-licensed</p>
+                    <p className="mt-1 text-lg font-bold text-white">
+                      {summary.facilities.unlicensed.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">By KEPH level</p>
+                  <div className="flex flex-wrap gap-2">
+                    {summary.facilities.by_level.map(({ level, count }) => (
+                      <div key={level} className="rounded-lg bg-white/5 px-3 py-2">
+                        <p className="text-xs text-slate-500">{level}</p>
+                        <p className="font-semibold text-white">{count.toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
-          </div>
-        </MetricBlock>
+          </MetricBlock>
+        </div>
 
-        {/* SHA Uptake Data from Postgres */}
-        <MetricBlock title="SHA Uptake Data (Postgres)" delay={0.145}>
-          <div className="space-y-4">
-            <p className="text-sm text-slate-400">
-              Fetch facility SHA uptake data from the `taifacare_sha_uptake` table.
-            </p>
-            <div className="flex flex-wrap gap-4 items-end">
-              <button
-                type="button"
-                onClick={fetchShaUptake}
-                disabled={shaUptakeLoading}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {shaUptakeLoading ? "Loading…" : "Fetch SHA uptake data"}
-              </button>
-            </div>
-            {shaUptakeError && (
-              <p className="text-amber-400 text-sm">{shaUptakeError}</p>
-            )}
-            {!shaUptakeLoading && !shaUptakeError && shaUptakeData !== null && (
-              <div className="mt-4">
-                <p className="text-xs text-slate-500 mb-2">
-                  {shaUptakeData.length} record{shaUptakeData.length !== 1 ? "s" : ""} returned
-                </p>
-                {shaUptakeData.length > 0 ? (
-                  <div className="overflow-x-auto rounded-lg border border-white/10 max-h-[400px] overflow-y-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="sticky top-0 bg-black/80 text-slate-400 border-b border-white/10">
-                        <tr>
-                          <th className="px-3 py-2 font-medium">Facility code</th>
-                          <th className="px-3 py-2 font-medium">Facility name</th>
-                          <th className="px-3 py-2 font-medium">County</th>
-                          <th className="px-3 py-2 font-medium">KEPH level</th>
-                          <th className="px-3 py-2 font-medium">Licensed</th>
-                          <th className="px-3 py-2 font-medium">Active</th>
-                          <th className="px-3 py-2 font-medium">Transaction</th>
-                          <th className="px-3 py-2 font-medium">Agent</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-white">
-                        {shaUptakeData.map((row, i) => (
-                          <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                            <td className="px-3 py-2">{row.frcode ?? "—"}</td>
-                            <td className="px-3 py-2">{row.facilityname ?? "—"}</td>
-                            <td className="px-3 py-2">{row.address_county ?? "—"}</td>
-                            <td className="px-3 py-2">{row.kephlevel ?? "—"}</td>
-                            <td className="px-3 py-2">{row.licensed_status ?? "—"}</td>
-                            <td className="px-3 py-2">{row.active_status ?? "—"}</td>
-                            <td className="px-3 py-2">{row.transacting_facility ?? "—"}</td>
-                            <td className="px-3 py-2">{row.facilityagent ?? "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+        {/* Map + county panel */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+        >
+          <div className="rounded-xl border border-white/20 bg-black/50 backdrop-blur-md shadow-xl overflow-hidden flex flex-col">
+            {/* Tabs + county search */}
+            <div className="flex items-center gap-1 p-2 border-b border-white/10 shrink-0 flex-wrap">
+              {(["registrations", "facilities"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setMapTab(tab)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
+                    mapTab === tab
+                      ? "bg-emerald-600 text-white"
+                      : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+              <div className="relative ml-auto">
+                <input
+                  type="text"
+                  placeholder="Find county…"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                  onFocus={() => setSearchOpen(true)}
+                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                  className="px-3 py-1.5 rounded-lg text-sm bg-white/5 text-white placeholder-slate-500 border border-white/10 focus:outline-none focus:border-emerald-500/50 w-36"
+                />
+                {searchOpen && filteredCounties.length > 0 && (
+                  <div className="absolute top-full mt-1 right-0 w-48 max-h-48 overflow-y-auto rounded-lg border border-white/20 bg-black/90 backdrop-blur z-20 shadow-xl">
+                    {filteredCounties.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onMouseDown={() => {
+                          setSelectedCounty(c);
+                          setSearchQuery("");
+                          setSearchOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-sm text-white hover:bg-white/10 transition-colors"
+                      >
+                        {c}
+                      </button>
+                    ))}
                   </div>
-                ) : (
-                  <p className="text-slate-400">No records returned.</p>
                 )}
               </div>
-            )}
-          </div>
-        </MetricBlock>
-
-        <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-slate-500 space-y-1">
-          <p>Kenya Health Command Center · Data indicative · Source: GoK / SHA</p>
-          <p>
-            Data source:{" "}
-            <a
-              href="https://cr.dha.go.ke/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-slate-400 hover:text-white underline underline-offset-2 transition-colors"
+            </div>
+            {/* Map */}
+            <div
+              className="relative flex-1 flex items-center justify-center min-h-[320px] lg:min-h-[380px]"
+              onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
             >
-              Kenya Client Registry (DHA)
-            </a>
-          </p>
+              <CountyMap
+                countyStatuses={countyStatuses}
+                onCountyHover={setHoveredCounty}
+                onCountyClick={setSelectedCounty}
+              />
+              {legendRanges && (
+                <div className="absolute bottom-3 left-3 z-10 rounded-lg border border-white/20 bg-black/80 backdrop-blur px-3 py-2 space-y-1.5">
+                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">
+                    SHA {mapTab}
+                  </p>
+                  {[
+                    { color: "bg-emerald-500/70", label: `${legendRanges.high.min.toLocaleString()} – ${legendRanges.high.max.toLocaleString()}` },
+                    { color: "bg-amber-500/70",   label: `${legendRanges.medium.min.toLocaleString()} – ${legendRanges.medium.max.toLocaleString()}` },
+                    { color: "bg-rose-500/70",    label: `${legendRanges.low.min.toLocaleString()} – ${legendRanges.low.max.toLocaleString()}` },
+                    { color: "bg-slate-500/50",   label: "No data" },
+                  ].map(({ color, label }) => (
+                    <div key={label} className="flex items-center gap-2">
+                      <span className={`inline-block h-3 w-3 flex-shrink-0 rounded-sm ${color}`} />
+                      <span className="text-xs text-white">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          {hoveredCounty && (
+            <div
+              className="fixed rounded-lg border border-white/20 bg-black/80 backdrop-blur px-3 py-2 text-sm font-medium text-white shadow-xl pointer-events-none z-50"
+              style={{ left: cursorPos.x + 14, top: cursorPos.y + 14 }}
+              role="status"
+              aria-live="polite"
+            >
+              {hoveredCounty}
+            </div>
+          )}
+          <CountyPanel countyName={selectedCounty} mapTab={mapTab} />
+        </motion.section>
+
+        <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-slate-500">
+          Universal Health Care · Data from SHA systems · Last synced:{" "}
+          {summary?.last_synced.find((s) => s.dataset_name === "registration")
+            ? new Date(
+                summary.last_synced.find((s) => s.dataset_name === "registration")!.last_full_sync_at
+              ).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })
+            : "—"}
         </footer>
       </div>
     </div>
