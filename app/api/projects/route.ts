@@ -42,9 +42,11 @@ export async function GET(request: NextRequest) {
     const result = await pgPool.query(
       BASE_SELECT + sectorClause + " ORDER BY project_id"
     );
+    console.log("[projects] rows:", result.rowCount ?? 0);
     return NextResponse.json({ data: result.rows });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(message);
     return NextResponse.json({ error: "Request failed", detail: message }, { status: 502 });
   }
 }

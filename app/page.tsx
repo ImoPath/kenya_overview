@@ -86,7 +86,7 @@ function KpiCard({
         </span>
       </div>
       <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-        {title}
+        {title.length > 30 ? title.slice(0, 30) + '...' : title}
       </h3>
       <p className="mt-1 text-3xl font-bold text-white">{value}</p>
       <p className="mt-0.5 text-sm text-slate-400">{subtitle}</p>
