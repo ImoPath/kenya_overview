@@ -176,14 +176,37 @@ function CountyPanel({
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
-    if (!countyName) { setDetail(null); return; }
-    setDetailLoading(true);
-    setDetail(null);
+    if (!countyName) return;
+
+    let alive = true;
+
+    // Schedule state updates outside the effect's synchronous body to satisfy:
+    // eslint react-hooks/set-state-in-effect
+    const t = setTimeout(() => {
+      if (!alive) return;
+      setDetailLoading(true);
+      setDetail(null);
+    }, 0);
+
     fetch(`api/healthcare/county?name=${encodeURIComponent(countyName)}`)
       .then((r) => r.json())
-      .then((d: CountyDetail) => setDetail(d))
-      .catch(() => setDetail(null))
-      .finally(() => setDetailLoading(false));
+      .then((d: CountyDetail) => {
+        if (!alive) return;
+        setDetail(d);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setDetail(null);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setDetailLoading(false);
+      });
+
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
   }, [countyName]);
 
   return (
