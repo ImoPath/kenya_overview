@@ -616,7 +616,7 @@ export default function Home() {
             <span className="text-sm font-medium text-slate-300">Live data</span>
           </div>
         </header>
-
+        
         {/* Main dashboard grid - Power BI tile layout */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {metrics.map((m) => (
