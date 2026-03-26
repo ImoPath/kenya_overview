@@ -617,22 +617,6 @@ export default function Home() {
           </div>
         </header>
 
-        {/* KPI strip - summary numbers */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {metrics.map((m) => (
-            <div
-              key={m.href}
-              className="rounded-lg border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-sm"
-            >
-              <p className="text-xs font-medium uppercase text-slate-400">{m.title}</p>
-              <p className="mt-0.5 flex items-baseline gap-2 text-xl font-bold text-white">
-                <span>{m.value}</span>
-                {m.unitLabel ? <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200/90">{m.unitLabel}</span> : null}
-              </p>
-            </div>
-          ))}
-        </div>
-
         {/* Main dashboard grid - Power BI tile layout */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {metrics.map((m) => (
