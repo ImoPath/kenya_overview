@@ -1,33 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
-const overviewMetrics = [
-  { label: "Registered MSMEs", value: "5.4M", desc: "Estimated active businesses", status: "on-target" as const },
-  { label: "Access to Credit", value: "38%", desc: "MSMEs with formal credit", status: "warning" as const },
-  { label: "Avg. Loan Ticket", value: "KES 52K", desc: "SME lending average", status: "on-target" as const },
-  { label: "Jobs Supported", value: "1.2M", desc: "Direct + indirect", status: "on-target" as const },
-];
+type MetricCard = {
+  pillar_code: string;
+  pillar_name: string;
+  section_id: number;
+  section_code: string;
+  section_title: string;
+  category: string;
+  metric_id: number;
+  metric_name: string;
+  metric_group: string;
+  unit: string;
+  change_type: string;
+  direction: string;
+  percent_value: number | null;
+  baseline_label: string | null;
+  baseline_value: string | null;
+  current_label: string | null;
+  current_value: string | null;
+  delta_label: string | null;
+  delta_value: string | null;
+  delta_note: string | null;
+};
 
-const programMetrics = [
-  { label: "Hustler Fund accounts", value: "22.8M" },
-  { label: "Total disbursed (KES)", value: "KES 56B" },
-  { label: "Women/Youth share", value: "61%" },
-  { label: "Repayment rate", value: "92%" },
-  { label: "Co-ops financed", value: "3,420" },
-  { label: "Market digitization pilots", value: "47" },
-];
-
-const sectorSplit = [
-  { sector: "Trade & retail", share: 34 },
-  { sector: "Services", share: 26 },
-  { sector: "Agribusiness", share: 18 },
-  { sector: "Manufacturing", share: 12 },
-  { sector: "Creative & informal", share: 10 },
-];
+type MetricCardsResponse = {
+  pillar: string;
+  count: number;
+  metrics: MetricCard[];
+};
 
 type ProjectRow = {
   project_id: number;
@@ -77,17 +82,83 @@ function MetricBlock({
   );
 }
 
+function trendTone(direction: string) {
+  if (direction === "up") return "border-emerald-500/30 bg-emerald-500/10";
+  if (direction === "down") return "border-amber-500/30 bg-amber-500/10";
+  return "border-slate-500/30 bg-slate-500/10";
+}
+
 export default function MsmeEconomyPage() {
+  const [metricCards, setMetricCards] = useState<MetricCard[]>([]);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectRow[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
+    fetch("api/metric-cards?pillar=MSME Economy")
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then((body: { error?: string; detail?: string }) => {
+            throw new Error(body.detail ?? body.error ?? res.statusText);
+          });
+        }
+        return res.json();
+      })
+      .then((d: MetricCardsResponse) => {
+        if (!cancelled) setMetricCards(d.metrics ?? []);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setMetricsError(err instanceof Error ? err.message : "Failed to load metrics");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMetricsLoading(false);
+      });
+
     fetch("api/projects?focus=msme")
       .then((r) => r.json())
-      .then((d: { data: ProjectRow[] }) => setProjects(d.data ?? []))
-      .catch(() => setProjects([]))
-      .finally(() => setProjectsLoading(false));
+      .then((d: { data: ProjectRow[] }) => {
+        if (!cancelled) setProjects(d.data ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([]);
+      })
+      .finally(() => {
+        if (!cancelled) setProjectsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const topCards = useMemo(() => metricCards.slice(0, 4), [metricCards]);
+
+  const sectionGroups = useMemo(() => {
+    const grouped = new Map<string, MetricCard[]>();
+    metricCards.forEach((metric) => {
+      const key = `${metric.section_code} ${metric.section_title}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(metric);
+    });
+    return Array.from(grouped.entries());
+  }, [metricCards]);
+
+  const notes = useMemo(
+    () =>
+      metricCards
+        .filter((metric) => Boolean(metric.delta_note))
+        .map((metric) => ({
+          key: `${metric.section_id}-${metric.metric_id}`,
+          label: metric.metric_name,
+          note: metric.delta_note as string,
+        })),
+    [metricCards]
+  );
 
   return (
     <div className="relative min-h-screen overflow-auto">
@@ -145,60 +216,80 @@ export default function MsmeEconomyPage() {
                 transition={{ delay: 0.35, duration: 0.35 }}
                 className="mt-1 text-slate-400"
               >
-                A high-level view of micro, small and medium enterprises: access to finance, sector mix, and program support.
+                Live MSME indicators sourced from `beta.vw_metric_cards`.
               </motion.p>
             </div>
           </div>
         </motion.header>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {overviewMetrics.map((m, i) => (
-            <motion.div
-              key={m.label}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.1 + i * 0.05 }}
-              className={`rounded-xl border backdrop-blur-md p-4 ${
-                m.status === "on-target"
-                  ? "border-emerald-500/30 bg-emerald-500/10"
-                  : "border-amber-500/30 bg-amber-500/10"
-              }`}
-            >
-              <p className="text-xs font-medium uppercase text-slate-400">{m.label}</p>
-              <p className="mt-1 text-2xl font-bold text-white">{m.value}</p>
-              <p className="text-xs text-slate-500">{m.desc}</p>
-            </motion.div>
-          ))}
+          {metricsLoading && (
+            <div className="col-span-2 lg:col-span-4 rounded-xl border border-white/20 bg-white/5 p-4 text-slate-400">
+              Loading MSME metrics…
+            </div>
+          )}
+          {!metricsLoading && metricsError && (
+            <div className="col-span-2 lg:col-span-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-400">
+              Error: {metricsError}
+            </div>
+          )}
+          {!metricsLoading &&
+            !metricsError &&
+            topCards.map((metric, i) => (
+              <motion.div
+                key={metric.metric_id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.1 + i * 0.05 }}
+                className={`rounded-xl border backdrop-blur-md p-4 ${trendTone(metric.direction)}`}
+              >
+                <p className="text-xs font-medium uppercase text-slate-400">{metric.metric_name}</p>
+                <p className="mt-1 text-2xl font-bold text-white">{metric.current_value ?? "—"}</p>
+                <p className="text-xs text-slate-500">
+                  {metric.current_label ?? "Current"} | {metric.delta_label ?? "Delta"}: {metric.delta_value ?? "—"}
+                </p>
+              </motion.div>
+            ))}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          <MetricBlock title="Program Snapshot" delay={0.1}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {programMetrics.map((m) => (
-                <div key={m.label} className="rounded-lg bg-white/5 p-3">
-                  <p className="text-xs text-slate-500">{m.label}</p>
-                  <p className="mt-1 font-semibold text-white">{m.value}</p>
+        {sectionGroups.map(([sectionTitle, metrics], index) => (
+          <MetricBlock key={sectionTitle} title={sectionTitle} delay={0.1 + index * 0.04}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {metrics.map((metric) => (
+                <div key={metric.metric_id} className="rounded-lg bg-white/5 p-4 space-y-1">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">{metric.category}</p>
+                  <p className="font-semibold text-white">{metric.metric_name}</p>
+                  <p className="text-sm text-slate-300">
+                    {metric.baseline_label ?? "Baseline"}: {metric.baseline_value ?? "—"} |{" "}
+                    {metric.current_label ?? "Current"}: {metric.current_value ?? "—"}
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    {metric.delta_label ?? "Change"}: {metric.delta_value ?? "—"}
+                    {metric.unit ? ` (${metric.unit})` : ""}
+                  </p>
+                  {metric.percent_value !== null && (
+                    <p className="text-xs text-emerald-300">Progress: {metric.percent_value}%</p>
+                  )}
                 </div>
               ))}
             </div>
           </MetricBlock>
+        ))}
 
-          <MetricBlock title="Sector Mix (dummy)" delay={0.15}>
+        <MetricBlock title="Metric Notes" delay={0.25}>
+          {notes.length === 0 ? (
+            <p className="text-slate-400 text-sm">No notes available in the data source.</p>
+          ) : (
             <ul className="space-y-3">
-              {sectorSplit.map((s) => (
-                <li key={s.sector} className="rounded-lg bg-white/5 p-3">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-white">{s.sector}</p>
-                    <p className="text-sm text-slate-300">{s.share}%</p>
-                  </div>
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400" style={{ width: `${s.share}%` }} />
-                  </div>
+              {notes.map((item) => (
+                <li key={item.key} className="rounded-lg bg-white/5 p-3">
+                  <p className="font-medium text-white">{item.label}</p>
+                  <p className="text-sm text-slate-400">{item.note}</p>
                 </li>
               ))}
             </ul>
-          </MetricBlock>
-        </div>
+          )}
+        </MetricBlock>
 
         <MetricBlock title="MSME & Economy Projects" delay={0.2}>
           {projectsLoading && <p className="text-slate-400">Loading projects…</p>}
@@ -241,7 +332,7 @@ export default function MsmeEconomyPage() {
         </MetricBlock>
 
         <footer className="mt-8 border-t border-white/10 pt-4 text-center text-xs text-slate-500">
-          MSME Economy Dashboard · Projects live · Other metrics indicative
+          MSME Economy Dashboard · Projects live · Source: `beta.vw_metric_cards`
         </footer>
       </div>
     </div>

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "MSME Economy | Kenya Overview",
   description:
-    "MSME overview dashboard with dummy indicators for finance access, sector mix, and program support.",
+    "MSME overview dashboard for finance access, sector mix, and program support.",
 };
 
 export default function MsmeEconomyLayout({

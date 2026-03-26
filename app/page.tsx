@@ -5,75 +5,128 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 
-const metrics = [
+type PillarCardBase = {
+  title: string;
+  icon: string;
+  details: string[];
+  href: string;
+};
+
+type MetricCardApi = {
+  metric_name: string;
+  direction: string;
+  percent_value: number | null;
+  unit: string | null;
+  current_label: string | null;
+  current_value: string | null;
+  delta_value: string | null;
+};
+
+type MetricCardsApiResponse = {
+  metrics: MetricCardApi[];
+};
+
+type KpiMetric = PillarCardBase & {
+  value: string;
+  unitLabel: string;
+  subtitle: string;
+  progress: number;
+  trend: string;
+  trendUp: boolean;
+};
+
+const pillarCards: PillarCardBase[] = [
   {
     title: "Agriculture",
     icon: "🌾",
-    value: "6.2%",
-    subtitle: "Sector growth (2025/26)",
-    progress: 72,
-    trend: "+4.1%",
-    trendUp: true,
     details: ["Dairy subsidy & aggregation", "Fertilizer program expanded", "Export earnings up 22%"],
     href: "/agriculture",
   },
   {
     title: "MSME Economy",
     icon: "🏪",
-    value: "5.4M",
-    subtitle: "Estimated active MSMEs",
-    progress: 64,
-    trend: "+6%",
-    trendUp: true,
     details: ["Hustler Fund: KES 56B disbursed", "Access to credit improving", "Market digitization pilots"],
     href: "/msme-economy",
   },
   {
     title: "Affordable Housing",
     icon: "🏠",
-    value: "312K",
-    subtitle: "Units delivered / in pipeline",
-    progress: 62,
-    trend: "+18%",
-    trendUp: true,
     details: ["Boma Yangu: 8.1M registered", "156K units completed", "Hustler Fund housing kitty active"],
     href: "/housing",
   },
   {
     title: "Universal Health Care",
     icon: "🏥",
-    value: "78%",
-    subtitle: "Kenyans with coverage (indicative)",
-    progress: 78,
-    trend: "+12%",
-    trendUp: true,
     details: ["Primary care strengthening", "Facility upgrades ongoing", "Coverage expansion efforts"],
     href: "/healthcare",
   },
   {
     title: "Digital Superhighway and Creative Economy",
     icon: "📡",
-    value: "1,847",
-    subtitle: "Public Wi‑Fi hotspots installed",
-    progress: 81,
-    trend: "+9%",
-    trendUp: true,
     details: ["Fiber expansion across counties", "Connected public institutions", "Creative economy enablement"],
     href: "/digital-superhighway-and-creative-economy",
   },
 ] as const;
 
+function formatMetricValue(metric: MetricCardApi | null): string {
+  if (!metric) return "—";
+  if (metric.current_value && metric.current_value.trim().length > 0) return metric.current_value;
+  if (typeof metric.percent_value === "number" && Number.isFinite(metric.percent_value)) {
+    return `${metric.percent_value.toFixed(1)}%`;
+  }
+  return "—";
+}
+
+function formatMetricSubtitle(metric: MetricCardApi | null): string {
+  if (!metric) return "Metric pending";
+  if (metric.current_label && metric.current_label.trim().length > 0) return metric.current_label;
+  return metric.metric_name || "Metric";
+}
+
+function formatUnitLabel(metric: MetricCardApi | null, value: string): string {
+  if (!metric?.unit) return "";
+  const trimmedUnit = metric.unit.trim();
+  if (!trimmedUnit) return "";
+
+  // Avoid duplicate unit display when the value already includes it.
+  const valueLower = value.toLowerCase();
+  const unitLower = trimmedUnit.toLowerCase();
+  if (valueLower.includes(unitLower)) return "";
+  if (unitLower.includes("percent") || unitLower === "%") {
+    return value.includes("%") ? "" : trimmedUnit;
+  }
+  return trimmedUnit;
+}
+
+function formatMetricTrend(metric: MetricCardApi | null): string {
+  if (!metric) return "N/A";
+  if (metric.delta_value && metric.delta_value.trim().length > 0) return metric.delta_value;
+  return "N/A";
+}
+
+function metricTrendUp(metric: MetricCardApi | null): boolean {
+  if (!metric) return true;
+  const dir = (metric.direction || "").toLowerCase();
+  return dir !== "down" && dir !== "negative";
+}
+
+function metricProgress(metric: MetricCardApi | null): number {
+  if (!metric || typeof metric.percent_value !== "number" || !Number.isFinite(metric.percent_value)) return 0;
+  return Math.max(0, Math.min(100, metric.percent_value));
+}
+
 function KpiCard({
   title,
   icon,
   value,
+  unitLabel,
   subtitle,
   progress,
   trend,
   trendUp,
   details,
   href,
-}: (typeof metrics)[number]) {
+}: KpiMetric) {
   const cardContent = (
     <>
       <div className="mb-3 flex items-center justify-between">
@@ -89,7 +142,10 @@ function KpiCard({
       <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
         {title.length > 30 ? title.slice(0, 30) + '...' : title}
       </h3>
-      <p className="mt-1 text-3xl font-bold text-white">{value}</p>
+      <p className="mt-1 flex items-baseline gap-2 text-3xl font-bold text-white">
+        <span>{value}</span>
+        {unitLabel ? <span className="text-xs font-semibold uppercase tracking-wide text-cyan-200/90">{unitLabel}</span> : null}
+      </p>
       <p className="mt-0.5 text-sm text-slate-400">{subtitle}</p>
       <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
         <div
@@ -472,6 +528,60 @@ function HudumaStatsCard() {
 }
 
 export default function Home() {
+  const [metricByPillar, setMetricByPillar] = useState<Record<string, MetricCardApi | null>>({});
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      const apiPrefix =
+        typeof window !== "undefined" && window.location.pathname.startsWith("/overview")
+          ? "/overview"
+          : "";
+
+      const entries = await Promise.all(
+        pillarCards.map(async (pillar) => {
+          try {
+            const res = await fetch(
+              `${apiPrefix}/api/metric-cards?pillar=${encodeURIComponent(pillar.title)}`,
+              { cache: "no-store" }
+            );
+            if (!res.ok) return [pillar.title, null] as const;
+            const data = (await res.json()) as MetricCardsApiResponse;
+            const firstMetric = Array.isArray(data.metrics) ? data.metrics[0] ?? null : null;
+            return [pillar.title, firstMetric] as const;
+          } catch {
+            return [pillar.title, null] as const;
+          }
+        })
+      );
+
+      if (!alive) return;
+      setMetricByPillar(Object.fromEntries(entries));
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const metrics: KpiMetric[] = useMemo(
+    () =>
+      pillarCards.map((pillar) => {
+        const metric = metricByPillar[pillar.title] ?? null;
+        return {
+          ...pillar,
+          value: formatMetricValue(metric),
+          unitLabel: formatUnitLabel(metric, formatMetricValue(metric)),
+          subtitle: formatMetricSubtitle(metric),
+          progress: metricProgress(metric),
+          trend: formatMetricTrend(metric),
+          trendUp: metricTrendUp(metric),
+        };
+      }),
+    [metricByPillar]
+  );
+
   return (
     <div className="relative min-h-screen overflow-auto">
       {/* Background: skyline image with overlay */}
@@ -515,7 +625,10 @@ export default function Home() {
               className="rounded-lg border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-sm"
             >
               <p className="text-xs font-medium uppercase text-slate-400">{m.title}</p>
-              <p className="mt-0.5 text-xl font-bold text-white">{m.value}</p>
+              <p className="mt-0.5 flex items-baseline gap-2 text-xl font-bold text-white">
+                <span>{m.value}</span>
+                {m.unitLabel ? <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200/90">{m.unitLabel}</span> : null}
+              </p>
             </div>
           ))}
         </div>
